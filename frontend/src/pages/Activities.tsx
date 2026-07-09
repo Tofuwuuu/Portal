@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { activitiesApi } from '../api/client'
 import ActivityCard from '../components/ActivityCard'
 import CreateForm from '../components/CreateForm'
+import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageHeader from '../components/PageHeader'
@@ -14,6 +15,7 @@ export default function Activities() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
+  const [editing, setEditing] = useState<Activity | null>(null)
 
   const loadActivities = useCallback(async () => {
     const { data } = await activitiesApi.list(showArchived)
@@ -34,14 +36,12 @@ export default function Activities() {
     await loadActivities()
   }
 
-  const handleEdit = async (activity: Activity) => {
-    const title = window.prompt('Edit title', activity.title)
-    if (!title) return
-    const description = window.prompt('Edit description', activity.description)
-    if (!description) return
-    const date = window.prompt('Edit date (YYYY-MM-DD)', activity.date)
-    if (!date) return
-    await activitiesApi.update(activity.id, { title, description, date })
+  const handleEdit = async (activity: Activity, values: Record<string, string>) => {
+    await activitiesApi.update(activity.id, {
+      title: values.title,
+      description: values.description,
+      date: values.date,
+    })
     await loadActivities()
   }
 
@@ -115,7 +115,7 @@ export default function Activities() {
               actions={
                 user?.role === 'teacher' ? (
                   <>
-                    <button className="btn-primary" onClick={() => handleEdit(a)}>
+                    <button className="btn-primary" onClick={() => setEditing(a)}>
                       Edit
                     </button>
                     <button className="btn-primary" onClick={() => handlePublishToggle(a)}>
@@ -137,6 +137,26 @@ export default function Activities() {
           ))}
         </div>
       )}
+      <EditItemModal
+        isOpen={Boolean(editing)}
+        title="Edit Activity"
+        fields={[
+          { name: 'title', label: 'Title' },
+          { name: 'description', label: 'Description', type: 'textarea' },
+          { name: 'date', label: 'Date', type: 'date' },
+        ]}
+        initialValues={
+          editing
+            ? {
+                title: editing.title,
+                description: editing.description,
+                date: editing.date,
+              }
+            : {}
+        }
+        onClose={() => setEditing(null)}
+        onSave={(values) => (editing ? handleEdit(editing, values) : Promise.resolve())}
+      />
     </PageLayout>
   )
 }

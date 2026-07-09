@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { assignmentsApi } from '../api/client'
 import AssignmentCard from '../components/AssignmentCard'
 import CreateForm from '../components/CreateForm'
+import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageHeader from '../components/PageHeader'
@@ -14,6 +15,7 @@ export default function Assignments() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
+  const [editing, setEditing] = useState<Assignment | null>(null)
 
   const loadAssignments = useCallback(async () => {
     const { data } = await assignmentsApi.list(showArchived)
@@ -34,14 +36,12 @@ export default function Assignments() {
     await loadAssignments()
   }
 
-  const handleEdit = async (assignment: Assignment) => {
-    const title = window.prompt('Edit title', assignment.title)
-    if (!title) return
-    const description = window.prompt('Edit description', assignment.description)
-    if (!description) return
-    const due_date = window.prompt('Edit due date (YYYY-MM-DD)', assignment.due_date)
-    if (!due_date) return
-    await assignmentsApi.update(assignment.id, { title, description, due_date })
+  const handleEdit = async (assignment: Assignment, values: Record<string, string>) => {
+    await assignmentsApi.update(assignment.id, {
+      title: values.title,
+      description: values.description,
+      due_date: values.due_date,
+    })
     await loadAssignments()
   }
 
@@ -115,7 +115,7 @@ export default function Assignments() {
               actions={
                 user?.role === 'teacher' ? (
                   <>
-                    <button className="btn-primary" onClick={() => handleEdit(a)}>
+                    <button className="btn-primary" onClick={() => setEditing(a)}>
                       Edit
                     </button>
                     <button className="btn-primary" onClick={() => handlePublishToggle(a)}>
@@ -137,6 +137,26 @@ export default function Assignments() {
           ))}
         </div>
       )}
+      <EditItemModal
+        isOpen={Boolean(editing)}
+        title="Edit Assignment"
+        fields={[
+          { name: 'title', label: 'Title' },
+          { name: 'description', label: 'Description', type: 'textarea' },
+          { name: 'due_date', label: 'Due Date', type: 'date' },
+        ]}
+        initialValues={
+          editing
+            ? {
+                title: editing.title,
+                description: editing.description,
+                due_date: editing.due_date,
+              }
+            : {}
+        }
+        onClose={() => setEditing(null)}
+        onSave={(values) => (editing ? handleEdit(editing, values) : Promise.resolve())}
+      />
     </PageLayout>
   )
 }
