@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom'
+import LoadingSpinner from './LoadingSpinner'
 import { useAuth } from '../context/AuthContext'
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -6,8 +7,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-primary">Loading...</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/40 to-white">
+        <LoadingSpinner />
       </div>
     )
   }

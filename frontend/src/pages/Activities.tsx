@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { activitiesApi } from '../api/client'
 import ActivityCard from '../components/ActivityCard'
 import CreateForm from '../components/CreateForm'
-import Navbar from '../components/Navbar'
+import EmptyState from '../components/EmptyState'
+import LoadingSpinner from '../components/LoadingSpinner'
+import PageHeader from '../components/PageHeader'
+import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
 import type { Activity } from '../types'
 
@@ -31,35 +34,38 @@ export default function Activities() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-bold text-primary">Activities</h1>
+    <PageLayout>
+      <PageHeader
+        title="Activities"
+        description="School events, fairs, and announcements."
+      />
 
-        {user?.role === 'teacher' && (
-          <CreateForm
-            fields={[
-              { name: 'title', label: 'Title' },
-              { name: 'date', label: 'Date', type: 'date' },
-              { name: 'description', label: 'Description', type: 'textarea' },
-            ]}
-            onSubmit={handleCreate}
-            submitLabel="Add Activity"
-          />
-        )}
+      {user?.role === 'teacher' && (
+        <CreateForm
+          fields={[
+            { name: 'title', label: 'Title' },
+            { name: 'date', label: 'Date', type: 'date' },
+            { name: 'description', label: 'Description', type: 'textarea' },
+          ]}
+          onSubmit={handleCreate}
+          submitLabel="Add Activity"
+        />
+      )}
 
-        {loading ? (
-          <p className="text-slate-500">Loading...</p>
-        ) : activities.length === 0 ? (
-          <p className="text-slate-400">No activities posted yet.</p>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {activities.map((a) => (
-              <ActivityCard key={a.id} activity={a} />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+      {loading ? (
+        <LoadingSpinner />
+      ) : activities.length === 0 ? (
+        <EmptyState
+          title="No activities posted yet"
+          description="When teachers add events, they will show up here."
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {activities.map((a) => (
+            <ActivityCard key={a.id} activity={a} />
+          ))}
+        </div>
+      )}
+    </PageLayout>
   )
 }

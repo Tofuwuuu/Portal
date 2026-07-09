@@ -1,5 +1,6 @@
 import type { Assignment } from '../types'
 import Card from './Card'
+import { CalendarIcon, ClipboardIcon } from './icons'
 
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString(undefined, {
@@ -17,13 +18,28 @@ export default function AssignmentCard({ assignment }: { assignment: Assignment 
   return (
     <Card
       title={assignment.title}
-      footer={assignment.creator_name ? `Assigned by ${assignment.creator_name}` : undefined}
+      icon={<ClipboardIcon />}
+      badge={
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+            isOverdue ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary'
+          }`}
+        >
+          <CalendarIcon className="h-3.5 w-3.5" />
+          {isOverdue ? 'Overdue · ' : 'Due '}
+          {formatDate(assignment.due_date)}
+        </span>
+      }
+      footer={
+        assignment.creator_name ? (
+          <>
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary-light" />
+            Assigned by {assignment.creator_name}
+          </>
+        ) : undefined
+      }
     >
-      <p className="mb-2">{assignment.description}</p>
-      <p className={`font-medium ${isOverdue ? 'text-red-600' : 'text-primary-light'}`}>
-        Due: {formatDate(assignment.due_date)}
-        {isOverdue && ' (Overdue)'}
-      </p>
+      <p>{assignment.description}</p>
     </Card>
   )
 }

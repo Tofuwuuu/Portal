@@ -30,9 +30,18 @@ docker compose up --build
 
 ## Usage
 
-1. Register a **teacher** account at http://localhost/register
-2. Log in and create activities and assignments
-3. Register a **student** account to view the posted content
+### Teacher (default account)
+
+| Email | Password |
+|-------|----------|
+| `admin@admin.com` | `admin` |
+
+Teachers can create activities and assignments.
+
+### Students
+
+1. Register at `/register` (all new accounts are students)
+2. Log in to view activities and assignments
 
 ## Project Structure
 
@@ -65,3 +74,27 @@ npm run dev
 ```
 
 The Vite dev server proxies `/api` requests to `http://localhost:8000`.
+
+## Vercel (frontend)
+
+The frontend is deployed to Vercel as a static Vite app.
+
+**Production URL:** https://frontend-blue-beta-n3fz9uwjje.vercel.app
+
+Redeploy from the frontend directory:
+
+```bash
+cd frontend
+npx vercel deploy --prod
+```
+
+### Connect the API
+
+The Vercel frontend needs a **public** backend URL. After hosting the FastAPI backend (Railway, Render, Fly.io, etc.):
+
+1. In the [Vercel project settings](https://vercel.com/mark-roderick-i-salise-s-projects/frontend/settings/environment-variables), add:
+   - `VITE_API_URL` = `https://your-backend-url.com/api`
+2. Redeploy the frontend.
+3. Set `CORS_ORIGINS` on the backend to include your Vercel URL (or rely on the built-in `*.vercel.app` regex).
+
+Until the backend is publicly hosted, login and data will not work on Vercel — only the UI shell loads.
