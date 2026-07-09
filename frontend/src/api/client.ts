@@ -28,15 +28,31 @@ export const authApi = {
 }
 
 export const activitiesApi = {
-  list: () => api.get<Activity[]>('/activities'),
+  list: (includeArchived = false) =>
+    api.get<Activity[]>('/activities', { params: { include_archived: includeArchived } }),
   create: (data: { title: string; description: string; date: string }) =>
     api.post<Activity>('/activities', data),
+  update: (id: number, data: { title: string; description: string; date: string }) =>
+    api.put<Activity>(`/activities/${id}`, data),
+  publish: (id: number) => api.post<Activity>(`/activities/${id}/publish`),
+  unpublish: (id: number) => api.post<Activity>(`/activities/${id}/unpublish`),
+  archive: (id: number) => api.post<Activity>(`/activities/${id}/archive`),
+  unarchive: (id: number) => api.post<Activity>(`/activities/${id}/unarchive`),
+  remove: (id: number) => api.delete(`/activities/${id}`),
 }
 
 export const assignmentsApi = {
-  list: () => api.get<Assignment[]>('/assignments'),
+  list: (includeArchived = false) =>
+    api.get<Assignment[]>('/assignments', { params: { include_archived: includeArchived } }),
   create: (data: { title: string; description: string; due_date: string }) =>
     api.post<Assignment>('/assignments', data),
+  update: (id: number, data: { title: string; description: string; due_date: string }) =>
+    api.put<Assignment>(`/assignments/${id}`, data),
+  publish: (id: number) => api.post<Assignment>(`/assignments/${id}/publish`),
+  unpublish: (id: number) => api.post<Assignment>(`/assignments/${id}/unpublish`),
+  archive: (id: number) => api.post<Assignment>(`/assignments/${id}/archive`),
+  unarchive: (id: number) => api.post<Assignment>(`/assignments/${id}/unarchive`),
+  remove: (id: number) => api.delete(`/assignments/${id}`),
 }
 
 export default api

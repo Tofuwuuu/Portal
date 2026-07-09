@@ -15,6 +15,8 @@ export interface Activity {
   date: string
   created_by: number
   created_at: string
+  is_published: boolean
+  is_archived: boolean
   creator_name?: string
 }
 
@@ -25,6 +27,8 @@ export interface Assignment {
   due_date: string
   created_by: number
   created_at: string
+  is_published: boolean
+  is_archived: boolean
   creator_name?: string
 }
 

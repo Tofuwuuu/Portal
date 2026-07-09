@@ -90,11 +90,25 @@ npx vercel deploy --prod
 
 ### Connect the API
 
-The Vercel frontend needs a **public** backend URL. After hosting the FastAPI backend (Railway, Render, Fly.io, etc.):
+The Vercel frontend is connected to the Railway backend:
 
-1. In the [Vercel project settings](https://vercel.com/mark-roderick-i-salise-s-projects/frontend/settings/environment-variables), add:
-   - `VITE_API_URL` = `https://your-backend-url.com/api`
-2. Redeploy the frontend.
-3. Set `CORS_ORIGINS` on the backend to include your Vercel URL (or rely on the built-in `*.vercel.app` regex).
+- **API:** https://api-production-b4b1b.up.railway.app
+- **API docs:** https://api-production-b4b1b.up.railway.app/docs
+- **Railway project:** https://railway.com/project/2125a8f5-b31b-4e22-a2b5-8236fb118e8f
 
-Until the backend is publicly hosted, login and data will not work on Vercel — only the UI shell loads.
+## Railway (backend)
+
+The backend is configured for [Railway](https://railway.app). See [backend/RAILWAY.md](backend/RAILWAY.md) for full steps.
+
+Quick deploy:
+
+```bash
+npm install -g @railway/cli
+railway login
+cd backend
+railway init
+railway add --database postgres
+railway up
+```
+
+Then generate a public domain in Railway → Settings → Networking, and set `VITE_API_URL` on Vercel to `https://your-railway-url/api`.

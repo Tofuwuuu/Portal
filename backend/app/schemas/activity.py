@@ -9,6 +9,12 @@ class ActivityCreate(BaseModel):
     date: date
 
 
+class ActivityUpdate(BaseModel):
+    title: str
+    description: str
+    date: date
+
+
 class ActivityResponse(BaseModel):
     id: int
     title: str
@@ -16,6 +22,8 @@ class ActivityResponse(BaseModel):
     date: date
     created_by: int
     created_at: datetime
+    is_published: bool
+    is_archived: bool
     creator_name: str | None = None
 
     model_config = {"from_attributes": True}
