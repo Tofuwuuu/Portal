@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Activity, Assignment, TokenResponse, User, UserRole } from '../types'
+import type { Activity, Assignment, Submission, TokenResponse, User, UserRole } from '../types'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -53,6 +53,9 @@ export const assignmentsApi = {
   archive: (id: number) => api.post<Assignment>(`/assignments/${id}/archive`),
   unarchive: (id: number) => api.post<Assignment>(`/assignments/${id}/unarchive`),
   remove: (id: number) => api.delete(`/assignments/${id}`),
+  submit: (id: number, data: { note: string; is_done: boolean }) =>
+    api.post<Submission>(`/assignments/${id}/submit`, data),
+  listSubmissions: (id: number) => api.get<Submission[]>(`/assignments/${id}/submissions`),
 }
 
 export default api

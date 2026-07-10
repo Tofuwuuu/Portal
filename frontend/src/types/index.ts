@@ -20,6 +20,17 @@ export interface Activity {
   creator_name?: string
 }
 
+export interface Submission {
+  id: number
+  assignment_id: number
+  student_id: number
+  student_name?: string
+  note: string
+  is_done: boolean
+  submitted_at: string
+  updated_at: string
+}
+
 export interface Assignment {
   id: number
   title: string
@@ -30,6 +41,8 @@ export interface Assignment {
   is_published: boolean
   is_archived: boolean
   creator_name?: string
+  submission_count?: number
+  my_submission?: Submission | null
 }
 
 export interface TokenResponse {

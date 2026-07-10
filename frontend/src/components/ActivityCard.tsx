@@ -15,13 +15,15 @@ function formatDate(dateStr: string) {
 interface ActivityCardProps {
   activity: Activity
   actions?: ReactNode
+  onClick?: () => void
 }
 
-export default function ActivityCard({ activity, actions }: ActivityCardProps) {
+export default function ActivityCard({ activity, actions, onClick }: ActivityCardProps) {
   return (
     <Card
       title={activity.title}
       icon={<SparklesIcon />}
+      onClick={onClick}
       badge={
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-medium text-primary">
@@ -49,8 +51,12 @@ export default function ActivityCard({ activity, actions }: ActivityCardProps) {
         ) : undefined
       }
     >
-      <p>{activity.description}</p>
-      {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
+      <p className="line-clamp-2">{activity.description}</p>
+      {actions && (
+        <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+          {actions}
+        </div>
+      )}
     </Card>
   )
 }

@@ -2,6 +2,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
+from app.schemas.submission import SubmissionResponse
+
 
 class AssignmentCreate(BaseModel):
     title: str
@@ -25,5 +27,7 @@ class AssignmentResponse(BaseModel):
     is_published: bool
     is_archived: bool
     creator_name: str | None = None
+    submission_count: int = 0
+    my_submission: SubmissionResponse | None = None
 
     model_config = {"from_attributes": True}

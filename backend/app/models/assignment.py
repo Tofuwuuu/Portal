@@ -19,3 +19,6 @@ class Assignment(Base):
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     creator: Mapped["User"] = relationship(back_populates="assignments")
+    submissions: Mapped[list["Submission"]] = relationship(
+        back_populates="assignment", cascade="all, delete-orphan"
+    )

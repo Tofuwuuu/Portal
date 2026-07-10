@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { assignmentsApi } from '../api/client'
 import AssignmentCard from '../components/AssignmentCard'
+import AssignmentDetailModal from '../components/AssignmentDetailModal'
 import CreateForm from '../components/CreateForm'
 import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageHeader from '../components/PageHeader'
 import PageLayout from '../components/PageLayout'
+import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
+import SubmissionsPanel from '../components/SubmissionsPanel'
 import { useAuth } from '../context/AuthContext'
-import type { Assignment } from '../types'
+import type { Assignment, Submission } from '../types'
 
 export default function Assignments() {
   const { user } = useAuth()
@@ -16,6 +19,11 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
   const [editing, setEditing] = useState<Assignment | null>(null)
+  const [selected, setSelected] = useState<Assignment | null>(null)
+  const [submitting, setSubmitting] = useState<Assignment | null>(null)
+  const [viewingSubmissions, setViewingSubmissions] = useState<Assignment | null>(null)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
 
   const loadAssignments = useCallback(async () => {
     const { data } = await assignmentsApi.list(showArchived)
@@ -69,6 +77,23 @@ export default function Assignments() {
     await loadAssignments()
   }
 
+  const handleSubmit = async (values: { note: string; is_done: boolean }) => {
+    if (!submitting) return
+    await assignmentsApi.submit(submitting.id, values)
+    await loadAssignments()
+  }
+
+  const handleViewSubmissions = async (assignment: Assignment) => {
+    setViewingSubmissions(assignment)
+    setSubmissionsLoading(true)
+    try {
+      const { data } = await assignmentsApi.listSubmissions(assignment.id)
+      setSubmissions(data)
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }
+
   return (
     <PageLayout>
       <PageHeader
@@ -99,6 +124,18 @@ export default function Assignments() {
         />
       )}
 
+      {viewingSubmissions && (
+        <SubmissionsPanel
+          assignment={viewingSubmissions}
+          submissions={submissions}
+          loading={submissionsLoading}
+          onClose={() => {
+            setViewingSubmissions(null)
+            setSubmissions([])
+          }}
+        />
+      )}
+
       {loading ? (
         <LoadingSpinner />
       ) : assignments.length === 0 ? (
@@ -112,11 +149,15 @@ export default function Assignments() {
             <AssignmentCard
               key={a.id}
               assignment={a}
+              onClick={() => setSelected(a)}
               actions={
                 user?.role === 'teacher' ? (
                   <>
                     <button className="btn-primary" onClick={() => setEditing(a)}>
                       Edit
+                    </button>
+                    <button className="btn-primary" onClick={() => handleViewSubmissions(a)}>
+                      View submissions
                     </button>
                     <button className="btn-primary" onClick={() => handlePublishToggle(a)}>
                       {a.is_published ? 'Unpublish' : 'Publish'}
@@ -131,12 +172,19 @@ export default function Assignments() {
                       Delete
                     </button>
                   </>
+                ) : user?.role === 'student' && a.is_published && !a.is_archived ? (
+                  <button className="btn-primary" onClick={() => setSubmitting(a)}>
+                    {a.my_submission ? 'Update submission' : 'Submit'}
+                  </button>
                 ) : undefined
               }
             />
           ))}
         </div>
       )}
+
+      <AssignmentDetailModal assignment={selected} onClose={() => setSelected(null)} />
+
       <EditItemModal
         isOpen={Boolean(editing)}
         title="Edit Assignment"
@@ -156,6 +204,13 @@ export default function Assignments() {
         }
         onClose={() => setEditing(null)}
         onSave={(values) => (editing ? handleEdit(editing, values) : Promise.resolve())}
+      />
+
+      <SubmitAssignmentModal
+        isOpen={Boolean(submitting)}
+        assignment={submitting}
+        onClose={() => setSubmitting(null)}
+        onSubmit={handleSubmit}
       />
     </PageLayout>
   )

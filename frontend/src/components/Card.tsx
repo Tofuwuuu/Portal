@@ -6,11 +6,31 @@ interface CardProps {
   footer?: ReactNode
   icon?: ReactNode
   badge?: ReactNode
+  onClick?: () => void
 }
 
-export default function Card({ title, children, footer, icon, badge }: CardProps) {
+export default function Card({ title, children, footer, icon, badge, onClick }: CardProps) {
+  const clickable = Boolean(onClick)
+
   return (
-    <article className="group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-card transition duration-200 hover:border-blue-200 hover:shadow-card-hover">
+    <article
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onClick?.()
+              }
+            }
+          : undefined
+      }
+      className={`group relative overflow-hidden rounded-xl border border-slate-200/80 bg-white p-5 shadow-card transition duration-200 hover:border-blue-200 hover:shadow-card-hover ${
+        clickable ? 'cursor-pointer' : ''
+      }`}
+    >
       <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-primary-light to-primary opacity-0 transition group-hover:opacity-100" />
       <div className="flex items-start gap-4">
         {icon && (

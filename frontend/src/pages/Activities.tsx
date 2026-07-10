@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { activitiesApi } from '../api/client'
 import ActivityCard from '../components/ActivityCard'
+import ActivityDetailModal from '../components/ActivityDetailModal'
 import CreateForm from '../components/CreateForm'
 import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
@@ -16,6 +17,7 @@ export default function Activities() {
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
   const [editing, setEditing] = useState<Activity | null>(null)
+  const [selected, setSelected] = useState<Activity | null>(null)
 
   const loadActivities = useCallback(async () => {
     const { data } = await activitiesApi.list(showArchived)
@@ -112,6 +114,7 @@ export default function Activities() {
             <ActivityCard
               key={a.id}
               activity={a}
+              onClick={() => setSelected(a)}
               actions={
                 user?.role === 'teacher' ? (
                   <>
@@ -137,6 +140,7 @@ export default function Activities() {
           ))}
         </div>
       )}
+      <ActivityDetailModal activity={selected} onClose={() => setSelected(null)} />
       <EditItemModal
         isOpen={Boolean(editing)}
         title="Edit Activity"
