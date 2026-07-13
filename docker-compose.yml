@@ -26,6 +26,8 @@ services:
       CORS_ORIGINS: http://localhost,http://localhost:80
     ports:
       - "8000:8000"
+    volumes:
+      - submission_uploads:/app/uploads
 
   frontend:
     build: ./frontend
@@ -37,3 +39,4 @@ services:
 
 volumes:
   postgres_data:
+  submission_uploads:

@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { activitiesApi, assignmentsApi } from '../api/client'
+import { activitiesApi, assignmentsApi, meetingsApi } from '../api/client'
 import ActivityCard from '../components/ActivityCard'
 import ActivityDetailModal from '../components/ActivityDetailModal'
 import AssignmentCard from '../components/AssignmentCard'
 import AssignmentDetailModal from '../components/AssignmentDetailModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
+import MeetingCard from '../components/MeetingCard'
 import PageLayout from '../components/PageLayout'
-import { CalendarIcon, ClipboardIcon } from '../components/icons'
+import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
+import { CalendarIcon, ClipboardIcon, VideoIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
-import type { Activity, Assignment } from '../types'
+import type { Activity, Assignment, Meeting } from '../types'
 
 function startOfToday() {
   const d = new Date()
@@ -33,18 +35,28 @@ export default function Dashboard() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [allAssignments, setAllAssignments] = useState<Assignment[]>([])
+  const [meetings, setMeetings] = useState<Meeting[]>([])
   const [totalActivities, setTotalActivities] = useState(0)
   const [totalAssignments, setTotalAssignments] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null)
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  const [submitting, setSubmitting] = useState<Assignment | null>(null)
+
+  const reloadAssignments = async () => {
+    const assignRes = await assignmentsApi.list()
+    setAssignments(assignRes.data.slice(0, 3))
+    setAllAssignments(assignRes.data)
+    setTotalAssignments(assignRes.data.length)
+  }
 
   useEffect(() => {
-    Promise.all([activitiesApi.list(), assignmentsApi.list()])
-      .then(([actRes, assignRes]) => {
+    Promise.all([activitiesApi.list(), assignmentsApi.list(), meetingsApi.list()])
+      .then(([actRes, assignRes, meetRes]) => {
         setActivities(actRes.data.slice(0, 3))
         setAssignments(assignRes.data.slice(0, 3))
         setAllAssignments(assignRes.data)
+        setMeetings(meetRes.data.filter((m) => m.is_active).slice(0, 3))
         setTotalActivities(actRes.data.length)
         setTotalAssignments(assignRes.data.length)
       })
@@ -121,6 +133,33 @@ export default function Dashboard() {
         <LoadingSpinner />
       ) : (
         <div className="space-y-8">
+          {meetings.length > 0 && (
+            <section>
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <VideoIcon className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-slate-900">Upcoming Meetings</h2>
+                </div>
+                <Link to="/meetings" className="section-link">
+                  View all →
+                </Link>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {meetings.map((meeting) => (
+                  <MeetingCard
+                    key={meeting.id}
+                    meeting={meeting}
+                    actions={
+                      <Link to={`/meetings/${meeting.id}/join`} className="btn-primary text-sm">
+                        Join
+                      </Link>
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="grid gap-8 lg:grid-cols-2">
             <section>
               <div className="mb-4 flex items-center justify-between">
@@ -240,6 +279,22 @@ export default function Dashboard() {
       <AssignmentDetailModal
         assignment={selectedAssignment}
         onClose={() => setSelectedAssignment(null)}
+        canSubmit={user?.role === 'student'}
+        onSubmitClick={() => {
+          if (!selectedAssignment) return
+          setSubmitting(selectedAssignment)
+          setSelectedAssignment(null)
+        }}
+      />
+      <SubmitAssignmentModal
+        isOpen={Boolean(submitting)}
+        assignment={submitting}
+        onClose={() => setSubmitting(null)}
+        onSubmit={async (values) => {
+          if (!submitting) return
+          await assignmentsApi.submit(submitting.id, values)
+          await reloadAssignments()
+        }}
       />
     </PageLayout>
   )

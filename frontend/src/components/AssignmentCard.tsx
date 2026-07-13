@@ -84,6 +84,9 @@ export default function AssignmentCard({
           Your note: {mySubmission.note}
         </p>
       )}
+      {mySubmission?.file_name && (
+        <p className="mt-2 text-xs font-medium text-primary">File: {mySubmission.file_name}</p>
+      )}
       {actions && (
         <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
           {actions}

@@ -1,5 +1,6 @@
 import axios from 'axios'
-import type { Activity, Assignment, Submission, TokenResponse, User, UserRole } from '../types'
+import type { Activity, Assignment, Meeting, Submission, TokenResponse, User, UserRole } from '../types'
+
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -53,9 +54,31 @@ export const assignmentsApi = {
   archive: (id: number) => api.post<Assignment>(`/assignments/${id}/archive`),
   unarchive: (id: number) => api.post<Assignment>(`/assignments/${id}/unarchive`),
   remove: (id: number) => api.delete(`/assignments/${id}`),
-  submit: (id: number, data: { note: string; is_done: boolean }) =>
-    api.post<Submission>(`/assignments/${id}/submit`, data),
+  submit: (id: number, data: { note: string; is_done: boolean; file?: File | null }) => {
+    const formData = new FormData()
+    formData.append('note', data.note)
+    formData.append('is_done', String(data.is_done))
+    if (data.file) {
+      formData.append('file', data.file)
+    }
+    return api.post<Submission>(`/assignments/${id}/submit`, formData)
+  },
   listSubmissions: (id: number) => api.get<Submission[]>(`/assignments/${id}/submissions`),
+  downloadFileUrl: (assignmentId: number, submissionId: number) => {
+    const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
+    return `${base}/assignments/${assignmentId}/submissions/${submissionId}/file`
+  },
+}
+
+export const meetingsApi = {
+  list: () => api.get<Meeting[]>('/meetings'),
+  get: (id: number) => api.get<Meeting>(`/meetings/${id}`),
+  create: (data: { title: string; description: string; starts_at: string }) =>
+    api.post<Meeting>('/meetings', data),
+  update: (id: number, data: { title: string; description: string; starts_at: string }) =>
+    api.patch<Meeting>(`/meetings/${id}`, data),
+  end: (id: number) => api.post<Meeting>(`/meetings/${id}/end`),
+  remove: (id: number) => api.delete(`/meetings/${id}`),
 }
 
 export default api

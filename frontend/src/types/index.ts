@@ -27,6 +27,8 @@ export interface Submission {
   student_name?: string
   note: string
   is_done: boolean
+  file_name?: string | null
+  has_file?: boolean
   submitted_at: string
   updated_at: string
 }
@@ -49,3 +51,16 @@ export interface TokenResponse {
   access_token: string
   token_type: string
 }
+
+export interface Meeting {
+  id: number
+  title: string
+  description: string
+  starts_at: string
+  room_slug: string
+  created_by: number
+  created_at: string
+  is_active: boolean
+  creator_name?: string
+}
+

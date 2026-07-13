@@ -3,11 +3,6 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-class SubmissionCreate(BaseModel):
-    note: str = Field(default="", max_length=2000)
-    is_done: bool = True
-
-
 class SubmissionResponse(BaseModel):
     id: int
     assignment_id: int
@@ -15,6 +10,8 @@ class SubmissionResponse(BaseModel):
     student_name: str | None = None
     note: str
     is_done: bool
+    file_name: str | None = None
+    has_file: bool = False
     submitted_at: datetime
     updated_at: datetime
 

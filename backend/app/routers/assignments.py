@@ -1,6 +1,8 @@
 from datetime import datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user, require_teacher
@@ -9,7 +11,8 @@ from app.models.assignment import Assignment
 from app.models.submission import Submission
 from app.models.user import User, UserRole
 from app.schemas.assignment import AssignmentCreate, AssignmentResponse, AssignmentUpdate
-from app.schemas.submission import SubmissionCreate, SubmissionResponse
+from app.schemas.submission import SubmissionResponse
+from app.uploads import delete_file_if_exists, save_submission_file
 
 router = APIRouter(prefix="/api/assignments", tags=["assignments"])
 
@@ -22,6 +25,8 @@ def _submission_to_response(submission: Submission) -> SubmissionResponse:
         student_name=submission.student.full_name if submission.student else None,
         note=submission.note,
         is_done=submission.is_done,
+        file_name=submission.file_name,
+        has_file=bool(submission.file_path),
         submitted_at=submission.submitted_at,
         updated_at=submission.updated_at,
     )
@@ -183,9 +188,11 @@ def delete_assignment(
 
 
 @router.post("/{assignment_id}/submit", response_model=SubmissionResponse)
-def submit_assignment(
+async def submit_assignment(
     assignment_id: int,
-    data: SubmissionCreate,
+    note: str = Form(""),
+    is_done: bool = Form(True),
+    file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -211,17 +218,42 @@ def submit_assignment(
         .first()
     )
 
+    if not submission and file is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please upload a PDF or DOC/DOCX file",
+        )
+
     now = datetime.utcnow()
     if submission:
-        submission.note = data.note.strip()
-        submission.is_done = data.is_done
+        submission.note = note.strip()
+        submission.is_done = is_done
         submission.updated_at = now
+        if file is not None and file.filename:
+            delete_file_if_exists(submission.file_path)
+            original_name, stored_path, content_type = await save_submission_file(
+                file, assignment_id, current_user.id
+            )
+            submission.file_name = original_name
+            submission.file_path = stored_path
+            submission.file_content_type = content_type
     else:
+        if file is None or not file.filename:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Please upload a PDF or DOC/DOCX file",
+            )
+        original_name, stored_path, content_type = await save_submission_file(
+            file, assignment_id, current_user.id
+        )
         submission = Submission(
             assignment_id=assignment_id,
             student_id=current_user.id,
-            note=data.note.strip(),
-            is_done=data.is_done,
+            note=note.strip(),
+            is_done=is_done,
+            file_name=original_name,
+            file_path=stored_path,
+            file_content_type=content_type,
             submitted_at=now,
             updated_at=now,
         )
@@ -246,6 +278,42 @@ def list_submissions(
         .all()
     )
     return [_submission_to_response(s) for s in submissions]
+
+
+@router.get("/{assignment_id}/submissions/{submission_id}/file")
+def download_submission_file(
+    assignment_id: int,
+    submission_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_assignment_or_404(db, assignment_id)
+    submission = (
+        db.query(Submission)
+        .filter(
+            Submission.id == submission_id,
+            Submission.assignment_id == assignment_id,
+        )
+        .first()
+    )
+    if not submission or not submission.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    if current_user.role != UserRole.teacher and submission.student_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not allowed to download this file",
+        )
+
+    file_path = Path(submission.file_path)
+    if not file_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File missing on server")
+
+    return FileResponse(
+        path=file_path,
+        filename=submission.file_name or file_path.name,
+        media_type=submission.file_content_type or "application/octet-stream",
+    )
 
 
 @router.get("/{assignment_id}/my-submission", response_model=SubmissionResponse | None)

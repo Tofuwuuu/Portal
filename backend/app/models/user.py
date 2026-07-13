@@ -25,3 +25,5 @@ class User(Base):
     activities: Mapped[list["Activity"]] = relationship(back_populates="creator")
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="creator")
     submissions: Mapped[list["Submission"]] = relationship(back_populates="student")
+    meetings: Mapped[list["Meeting"]] = relationship(back_populates="creator")
+

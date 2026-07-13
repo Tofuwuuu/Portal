@@ -1,3 +1,4 @@
+import { assignmentsApi } from '../api/client'
 import type { Assignment, Submission } from '../types'
 
 interface SubmissionsPanelProps {
@@ -15,6 +16,26 @@ function formatDateTime(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+async function downloadFile(assignmentId: number, submission: Submission) {
+  const token = localStorage.getItem('token')
+  const url = assignmentsApi.downloadFileUrl(assignmentId, submission.id)
+  const response = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!response.ok) {
+    throw new Error('Download failed')
+  }
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = objectUrl
+  link.download = submission.file_name || 'submission'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(objectUrl)
 }
 
 export default function SubmissionsPanel({
@@ -69,6 +90,15 @@ export default function SubmissionsPanel({
                   <p className="mt-2 text-sm text-slate-600">{submission.note}</p>
                 ) : (
                   <p className="mt-2 text-sm italic text-slate-400">No note provided</p>
+                )}
+                {submission.has_file && submission.file_name && (
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-medium text-primary hover:underline"
+                    onClick={() => downloadFile(assignment.id, submission)}
+                  >
+                    Download: {submission.file_name}
+                  </button>
                 )}
                 <p className="mt-2 text-xs text-slate-400">
                   Submitted {formatDateTime(submission.submitted_at)}

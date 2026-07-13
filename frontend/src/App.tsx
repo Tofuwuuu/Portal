@@ -4,7 +4,9 @@ import { AuthProvider } from './context/AuthContext'
 import Activities from './pages/Activities'
 import Assignments from './pages/Assignments'
 import Dashboard from './pages/Dashboard'
+import JoinMeeting from './pages/JoinMeeting'
 import Login from './pages/Login'
+import Meetings from './pages/Meetings'
 import Register from './pages/Register'
 
 export default function App() {
@@ -35,6 +37,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Assignments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/meetings"
+            element={
+              <ProtectedRoute>
+                <Meetings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/meetings/:id/join"
+            element={
+              <ProtectedRoute>
+                <JoinMeeting />
               </ProtectedRoute>
             }
           />

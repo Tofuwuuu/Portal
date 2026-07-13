@@ -6,7 +6,8 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import SessionLocal, engine
-from app.routers import activities, assignments, auth
+from app.routers import activities, assignments, auth, meetings
+
 from app.seed import seed_default_teacher
 
 app = FastAPI(title="School Portal API", version="1.0.0")
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(activities.router)
 app.include_router(assignments.router)
+app.include_router(meetings.router)
 
 
 @app.on_event("startup")

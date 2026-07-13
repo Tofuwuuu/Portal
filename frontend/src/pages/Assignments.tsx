@@ -77,7 +77,11 @@ export default function Assignments() {
     await loadAssignments()
   }
 
-  const handleSubmit = async (values: { note: string; is_done: boolean }) => {
+  const handleSubmit = async (values: {
+    note: string
+    is_done: boolean
+    file?: File | null
+  }) => {
     if (!submitting) return
     await assignmentsApi.submit(submitting.id, values)
     await loadAssignments()
@@ -183,7 +187,16 @@ export default function Assignments() {
         </div>
       )}
 
-      <AssignmentDetailModal assignment={selected} onClose={() => setSelected(null)} />
+      <AssignmentDetailModal
+        assignment={selected}
+        onClose={() => setSelected(null)}
+        canSubmit={user?.role === 'student'}
+        onSubmitClick={() => {
+          if (!selected) return
+          setSubmitting(selected)
+          setSelected(null)
+        }}
+      />
 
       <EditItemModal
         isOpen={Boolean(editing)}

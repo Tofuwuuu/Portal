@@ -1,11 +1,18 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import type { Assignment } from '../types'
 
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx']
+
 interface SubmitAssignmentModalProps {
   isOpen: boolean
   assignment: Assignment | null
   onClose: () => void
-  onSubmit: (values: { note: string; is_done: boolean }) => Promise<void>
+  onSubmit: (values: { note: string; is_done: boolean; file?: File | null }) => Promise<void>
+}
+
+function hasAllowedExtension(filename: string) {
+  const lower = filename.toLowerCase()
+  return ALLOWED_EXTENSIONS.some((ext) => lower.endsWith(ext))
 }
 
 export default function SubmitAssignmentModal({
@@ -16,6 +23,7 @@ export default function SubmitAssignmentModal({
 }: SubmitAssignmentModalProps) {
   const [note, setNote] = useState('')
   const [isDone, setIsDone] = useState(true)
+  const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -23,18 +31,33 @@ export default function SubmitAssignmentModal({
     if (assignment) {
       setNote(assignment.my_submission?.note || '')
       setIsDone(assignment.my_submission?.is_done ?? true)
+      setFile(null)
       setError('')
     }
   }, [assignment, isOpen])
 
   if (!isOpen || !assignment) return null
 
+  const existingFile = assignment.my_submission?.file_name
+  const requiresFile = !assignment.my_submission?.has_file && !existingFile
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setError('')
+
+    if (file && !hasAllowedExtension(file.name)) {
+      setError('Only PDF and DOC/DOCX files are allowed.')
+      return
+    }
+
+    if (requiresFile && !file) {
+      setError('Please upload a PDF or DOC/DOCX file.')
+      return
+    }
+
+    setLoading(true)
     try {
-      await onSubmit({ note: note.trim(), is_done: isDone })
+      await onSubmit({ note: note.trim(), is_done: isDone, file })
       onClose()
     } catch {
       setError('Failed to submit. Please try again.')
@@ -63,10 +86,27 @@ export default function SubmitAssignmentModal({
         <form onSubmit={handleSubmit} className="space-y-4 p-5">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              File {requiresFile ? '(required)' : '(optional — replace existing)'}
+            </label>
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-dark"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">PDF or DOC/DOCX only · Max 10 MB</p>
+            {existingFile && !file && (
+              <p className="mt-1 text-xs text-slate-500">Current file: {existingFile}</p>
+            )}
+            {file && <p className="mt-1 text-xs text-primary">Selected: {file.name}</p>}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Note (optional)
             </label>
             <textarea
-              rows={4}
+              rows={3}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Add a short note about your work..."

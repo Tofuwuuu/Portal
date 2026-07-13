@@ -6,7 +6,9 @@ const navLinks = [
   { to: '/', label: 'Dashboard' },
   { to: '/activities', label: 'Activities' },
   { to: '/assignments', label: 'Assignments' },
+  { to: '/meetings', label: 'Meetings' },
 ]
+
 
 function initials(name: string) {
   return name
@@ -34,7 +36,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="hidden items-center gap-1 sm:flex">
             {navLinks.map((link) => {
-              const active = location.pathname === link.to
+              const active =
+                link.to === '/'
+                  ? location.pathname === '/'
+                  : location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
               return (
                 <Link
                   key={link.to}
@@ -75,7 +80,10 @@ export default function Navbar() {
 
       <div className="flex gap-1 overflow-x-auto border-t border-white/10 px-4 py-2 sm:hidden">
         {navLinks.map((link) => {
-          const active = location.pathname === link.to
+          const active =
+            link.to === '/'
+              ? location.pathname === '/'
+              : location.pathname === link.to || location.pathname.startsWith(`${link.to}/`)
           return (
             <Link
               key={link.to}

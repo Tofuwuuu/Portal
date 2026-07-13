@@ -23,17 +23,23 @@ function formatDateTime(value: string) {
 interface AssignmentDetailModalProps {
   assignment: Assignment | null
   onClose: () => void
+  canSubmit?: boolean
+  onSubmitClick?: () => void
 }
 
 export default function AssignmentDetailModal({
   assignment,
   onClose,
+  canSubmit = false,
+  onSubmitClick,
 }: AssignmentDetailModalProps) {
   if (!assignment) return null
 
   const due = new Date(assignment.due_date + 'T00:00:00')
   const isOverdue = due < new Date(new Date().toDateString())
   const mySubmission = assignment.my_submission
+  const showSubmit =
+    canSubmit && assignment.is_published && !assignment.is_archived && Boolean(onSubmitClick)
 
   return (
     <div
@@ -142,7 +148,7 @@ export default function AssignmentDetailModal({
             </div>
           </div>
 
-          {mySubmission && (
+          {mySubmission ? (
             <div className="rounded-lg border border-emerald-100 bg-emerald-50/60 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                 Your submission
@@ -150,6 +156,9 @@ export default function AssignmentDetailModal({
               <p className="mt-1 text-sm font-medium text-emerald-800">
                 {mySubmission.is_done ? 'Marked as done' : 'In progress'}
               </p>
+              {mySubmission.file_name && (
+                <p className="mt-2 text-sm text-slate-700">File: {mySubmission.file_name}</p>
+              )}
               {mySubmission.note ? (
                 <p className="mt-2 text-sm text-slate-700">{mySubmission.note}</p>
               ) : (
@@ -158,6 +167,24 @@ export default function AssignmentDetailModal({
               <p className="mt-2 text-xs text-slate-400">
                 Submitted {formatDateTime(mySubmission.submitted_at)}
               </p>
+            </div>
+          ) : showSubmit ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              You haven&apos;t submitted this assignment yet. Upload a PDF or DOC/DOCX file to submit.
+            </div>
+          ) : null}
+
+          {showSubmit && (
+            <div className="flex justify-end border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  onSubmitClick?.()
+                }}
+              >
+                {mySubmission ? 'Update submission' : 'Submit assignment'}
+              </button>
             </div>
           )}
         </div>
