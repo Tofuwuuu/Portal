@@ -1,4 +1,10 @@
 import type { Assignment } from '../types'
+import {
+  getAssignmentStatus,
+  getStatusBadgeClass,
+  getStatusLabel,
+  getTurnInLabel,
+} from '../utils/assignmentStatus'
 import { CalendarIcon, ClipboardIcon } from './icons'
 
 function formatDate(dateStr: string) {
@@ -38,6 +44,7 @@ export default function AssignmentDetailModal({
   const due = new Date(assignment.due_date + 'T00:00:00')
   const isOverdue = due < new Date(new Date().toDateString())
   const mySubmission = assignment.my_submission
+  const status = getAssignmentStatus(assignment)
   const showSubmit =
     canSubmit && assignment.is_published && !assignment.is_archived && Boolean(onSubmitClick)
 
@@ -88,9 +95,11 @@ export default function AssignmentDetailModal({
                 Archived
               </span>
             )}
-            {mySubmission?.is_done && (
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                Submitted
+            {canSubmit && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(status)}`}
+              >
+                {getStatusLabel(status)}
               </span>
             )}
             {typeof assignment.submission_count === 'number' &&
@@ -128,24 +137,6 @@ export default function AssignmentDetailModal({
                 {formatDate(assignment.due_date)}
               </p>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Created
-              </p>
-              <p className="mt-1 font-medium text-slate-800">
-                {formatDateTime(assignment.created_at)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</p>
-              <p className="mt-1 font-medium text-slate-800">
-                {assignment.is_archived
-                  ? 'Archived'
-                  : assignment.is_published
-                    ? 'Published'
-                    : 'Unpublished'}
-              </p>
-            </div>
           </div>
 
           {mySubmission ? (
@@ -167,23 +158,35 @@ export default function AssignmentDetailModal({
               <p className="mt-2 text-xs text-slate-400">
                 Submitted {formatDateTime(mySubmission.submitted_at)}
               </p>
+              {mySubmission.grade != null && (
+                <div className="mt-3 rounded-lg border border-blue-100 bg-white p-3">
+                  <p className="text-sm font-semibold text-blue-800">
+                    Grade: {mySubmission.grade}/100
+                  </p>
+                  {mySubmission.feedback ? (
+                    <p className="mt-1 text-sm text-slate-700">{mySubmission.feedback}</p>
+                  ) : (
+                    <p className="mt-1 text-sm italic text-slate-500">No feedback provided</p>
+                  )}
+                  {mySubmission.graded_at && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Graded {formatDateTime(mySubmission.graded_at)}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : showSubmit ? (
             <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-              You haven&apos;t submitted this assignment yet. Upload a PDF or DOC/DOCX file to submit.
+              You haven&apos;t submitted this assignment yet. Upload a PDF or DOC/DOCX file to turn
+              it in.
             </div>
           ) : null}
 
-          {showSubmit && (
+          {showSubmit && status !== 'graded' && (
             <div className="flex justify-end border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => {
-                  onSubmitClick?.()
-                }}
-              >
-                {mySubmission ? 'Update submission' : 'Submit assignment'}
+              <button type="button" className="btn-primary" onClick={() => onSubmitClick?.()}>
+                {getTurnInLabel(status)}
               </button>
             </div>
           )}

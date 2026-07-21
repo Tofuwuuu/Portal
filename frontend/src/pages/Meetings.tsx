@@ -9,9 +9,9 @@ import PageHeader from '../components/PageHeader'
 import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
 import type { Meeting } from '../types'
+import { canJoinMeeting } from '../utils/meetingTime'
 
 function toApiDateTime(localValue: string) {
-  // datetime-local → ISO without timezone; backend stores as naive UTC-ish datetime
   if (!localValue) return localValue
   return new Date(localValue).toISOString()
 }
@@ -36,6 +36,7 @@ export default function Meetings() {
       title: values.title,
       description: values.description || '',
       starts_at: toApiDateTime(values.starts_at),
+      duration_minutes: values.duration_minutes ? Number(values.duration_minutes) : 60,
     })
     await loadMeetings()
   }
@@ -61,6 +62,7 @@ export default function Meetings() {
           fields={[
             { name: 'title', label: 'Title' },
             { name: 'starts_at', label: 'Starts at', type: 'datetime-local' },
+            { name: 'duration_minutes', label: 'Duration (minutes)', type: 'number', required: false },
             { name: 'description', label: 'Description', type: 'textarea', required: false },
           ]}
           onSubmit={handleCreate}
@@ -87,12 +89,12 @@ export default function Meetings() {
               meeting={meeting}
               actions={
                 <>
-                  {meeting.is_active && (
+                  {canJoinMeeting(meeting) && (
                     <Link to={`/meetings/${meeting.id}/join`} className="btn-primary text-sm">
                       Join
                     </Link>
                   )}
-                  {user?.role === 'teacher' && meeting.is_active && (
+                  {user?.role === 'teacher' && meeting.is_active && meeting.time_status !== 'ended' && (
                     <button
                       type="button"
                       onClick={() => handleEnd(meeting)}

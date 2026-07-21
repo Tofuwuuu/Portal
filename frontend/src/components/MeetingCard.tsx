@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Meeting } from '../types'
+import { formatMeetingTimeLabel, meetingTimeBadgeClass } from '../utils/meetingTime'
 import Card from './Card'
 import { CalendarIcon, VideoIcon } from './icons'
 
@@ -20,6 +21,8 @@ interface MeetingCardProps {
 }
 
 export default function MeetingCard({ meeting, actions }: MeetingCardProps) {
+  const timeLabel = formatMeetingTimeLabel(meeting)
+
   return (
     <Card
       title={meeting.title}
@@ -31,12 +34,15 @@ export default function MeetingCard({ meeting, actions }: MeetingCardProps) {
             {formatDateTime(meeting.starts_at)}
           </span>
           <span
-            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              meeting.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-            }`}
+            className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meetingTimeBadgeClass(meeting)}`}
           >
-            {meeting.is_active ? 'Active' : 'Ended'}
+            {timeLabel}
           </span>
+          {meeting.duration_minutes > 0 && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+              {meeting.duration_minutes} min
+            </span>
+          )}
         </div>
       }
       footer={meeting.creator_name ? <>Hosted by {meeting.creator_name}</> : undefined}

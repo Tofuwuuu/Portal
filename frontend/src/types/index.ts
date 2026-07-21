@@ -29,6 +29,9 @@ export interface Submission {
   is_done: boolean
   file_name?: string | null
   has_file?: boolean
+  grade?: number | null
+  feedback?: string | null
+  graded_at?: string | null
   submitted_at: string
   updated_at: string
 }
@@ -57,10 +60,12 @@ export interface Meeting {
   title: string
   description: string
   starts_at: string
+  duration_minutes: number
   room_slug: string
   created_by: number
   created_at: string
   is_active: boolean
+  time_status: 'upcoming' | 'live' | 'ended'
   creator_name?: string
 }
 

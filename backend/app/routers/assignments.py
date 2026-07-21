@@ -11,7 +11,7 @@ from app.models.assignment import Assignment
 from app.models.submission import Submission
 from app.models.user import User, UserRole
 from app.schemas.assignment import AssignmentCreate, AssignmentResponse, AssignmentUpdate
-from app.schemas.submission import SubmissionResponse
+from app.schemas.submission import SubmissionGrade, SubmissionResponse
 from app.uploads import delete_file_if_exists, save_submission_file
 
 router = APIRouter(prefix="/api/assignments", tags=["assignments"])
@@ -27,6 +27,9 @@ def _submission_to_response(submission: Submission) -> SubmissionResponse:
         is_done=submission.is_done,
         file_name=submission.file_name,
         has_file=bool(submission.file_path),
+        grade=submission.grade,
+        feedback=submission.feedback,
+        graded_at=submission.graded_at,
         submitted_at=submission.submitted_at,
         updated_at=submission.updated_at,
     )
@@ -278,6 +281,38 @@ def list_submissions(
         .all()
     )
     return [_submission_to_response(s) for s in submissions]
+
+
+@router.patch(
+    "/{assignment_id}/submissions/{submission_id}/grade",
+    response_model=SubmissionResponse,
+)
+def grade_submission(
+    assignment_id: int,
+    submission_id: int,
+    data: SubmissionGrade,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_teacher),
+):
+    _get_assignment_or_404(db, assignment_id)
+    submission = (
+        db.query(Submission)
+        .filter(
+            Submission.id == submission_id,
+            Submission.assignment_id == assignment_id,
+        )
+        .first()
+    )
+    if not submission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Submission not found")
+
+    submission.grade = data.grade
+    submission.feedback = data.feedback.strip()
+    submission.graded_at = datetime.utcnow()
+    submission.graded_by = current_user.id
+    db.commit()
+    db.refresh(submission)
+    return _submission_to_response(submission)
 
 
 @router.get("/{assignment_id}/submissions/{submission_id}/file")

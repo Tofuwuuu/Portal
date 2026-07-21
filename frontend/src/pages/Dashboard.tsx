@@ -13,6 +13,7 @@ import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
 import { CalendarIcon, ClipboardIcon, VideoIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
 import type { Activity, Assignment, Meeting } from '../types'
+import { canJoinMeeting } from '../utils/meetingTime'
 
 function startOfToday() {
   const d = new Date()
@@ -56,7 +57,7 @@ export default function Dashboard() {
         setActivities(actRes.data.slice(0, 3))
         setAssignments(assignRes.data.slice(0, 3))
         setAllAssignments(assignRes.data)
-        setMeetings(meetRes.data.filter((m) => m.is_active).slice(0, 3))
+        setMeetings(meetRes.data.filter((m) => m.is_active && m.time_status !== 'ended').slice(0, 3))
         setTotalActivities(actRes.data.length)
         setTotalAssignments(assignRes.data.length)
       })
@@ -150,9 +151,11 @@ export default function Dashboard() {
                     key={meeting.id}
                     meeting={meeting}
                     actions={
-                      <Link to={`/meetings/${meeting.id}/join`} className="btn-primary text-sm">
-                        Join
-                      </Link>
+                      canJoinMeeting(meeting) ? (
+                        <Link to={`/meetings/${meeting.id}/join`} className="btn-primary text-sm">
+                          Join
+                        </Link>
+                      ) : undefined
                     }
                   />
                 ))}

@@ -20,10 +20,15 @@ class Submission(Base):
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     file_content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    graded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    graded_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
     assignment: Mapped["Assignment"] = relationship(back_populates="submissions")
-    student: Mapped["User"] = relationship(back_populates="submissions")
+    student: Mapped["User"] = relationship(back_populates="submissions", foreign_keys=[student_id])
+    grader: Mapped["User | None"] = relationship(foreign_keys=[graded_by])

@@ -10,17 +10,29 @@ DEFAULT_TEACHER = {
     "role": UserRole.teacher,
 }
 
+DEFAULT_STUDENT = {
+    "email": "student@school.com",
+    "password": "student123",
+    "full_name": "Student User",
+    "role": UserRole.student,
+}
 
-def seed_default_teacher(db: Session) -> None:
-    existing = db.query(User).filter(User.email == DEFAULT_TEACHER["email"]).first()
+
+def _seed_user(db: Session, data: dict) -> None:
+    existing = db.query(User).filter(User.email == data["email"]).first()
     if existing:
         return
 
     user = User(
-        email=DEFAULT_TEACHER["email"],
-        full_name=DEFAULT_TEACHER["full_name"],
-        hashed_password=get_password_hash(DEFAULT_TEACHER["password"]),
-        role=DEFAULT_TEACHER["role"],
+        email=data["email"],
+        full_name=data["full_name"],
+        hashed_password=get_password_hash(data["password"]),
+        role=data["role"],
     )
     db.add(user)
     db.commit()
+
+
+def seed_defaults(db: Session) -> None:
+    _seed_user(db, DEFAULT_TEACHER)
+    _seed_user(db, DEFAULT_STUDENT)

@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react'
 import type { Assignment } from '../types'
+import {
+  getAssignmentStatus,
+  getStatusBadgeClass,
+  getStatusLabel,
+} from '../utils/assignmentStatus'
 import Card from './Card'
 import { CalendarIcon, ClipboardIcon } from './icons'
 
@@ -28,6 +33,7 @@ export default function AssignmentCard({
   const due = new Date(assignment.due_date + 'T00:00:00')
   const isOverdue = due < new Date(new Date().toDateString())
   const mySubmission = assignment.my_submission
+  const status = getAssignmentStatus(assignment)
 
   return (
     <Card
@@ -55,9 +61,16 @@ export default function AssignmentCard({
               Archived
             </span>
           )}
-          {showSubmissionStatus && mySubmission?.is_done && (
-            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-              Submitted
+          {showSubmissionStatus && status !== 'not_submitted' && (
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeClass(status)}`}
+            >
+              {getStatusLabel(status)}
+            </span>
+          )}
+          {showSubmissionStatus && status === 'not_submitted' && (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              Not submitted
             </span>
           )}
           {typeof assignment.submission_count === 'number' &&
@@ -86,6 +99,14 @@ export default function AssignmentCard({
       )}
       {mySubmission?.file_name && (
         <p className="mt-2 text-xs font-medium text-primary">File: {mySubmission.file_name}</p>
+      )}
+      {mySubmission?.grade != null && (
+        <div className="mt-2 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2">
+          <p className="text-xs font-semibold text-blue-800">Grade: {mySubmission.grade}/100</p>
+          {mySubmission.feedback && (
+            <p className="mt-1 text-xs text-slate-600">{mySubmission.feedback}</p>
+          )}
+        </div>
       )}
       {actions && (
         <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>

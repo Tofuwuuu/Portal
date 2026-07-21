@@ -38,10 +38,13 @@ docker compose up --build
 
 Teachers can create activities and assignments.
 
-### Students
+### Student (demo account)
 
-1. Register at `/register` (all new accounts are students)
-2. Log in to view activities and assignments
+| Email | Password |
+|-------|----------|
+| `student@school.com` | `student123` |
+
+This account is seeded automatically on first startup. You can also register at `/register` (all new accounts are students).
 
 ## Project Structure
 

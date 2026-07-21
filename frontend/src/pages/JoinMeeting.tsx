@@ -4,7 +4,7 @@ import { meetingsApi } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 import Navbar from '../components/Navbar'
 import { useAuth } from '../context/AuthContext'
-import type { Meeting } from '../types'
+import { canJoinMeeting } from '../utils/meetingTime'
 
 export default function JoinMeeting() {
   const { id } = useParams()
@@ -67,6 +67,24 @@ export default function JoinMeeting() {
         <div className="mx-auto max-w-lg px-4 py-16 text-center">
           <h1 className="text-xl font-semibold text-slate-900">Meeting ended</h1>
           <p className="mt-2 text-sm text-slate-500">This meeting is no longer available.</p>
+          <Link to="/meetings" className="btn-primary mt-6 inline-flex">
+            Back to Meetings
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (user?.role !== 'teacher' && !canJoinMeeting(meeting)) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <Navbar />
+        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+          <h1 className="text-xl font-semibold text-slate-900">Not live yet</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            This meeting has not started or has already ended. Check the Meetings page for the
+            schedule.
+          </p>
           <Link to="/meetings" className="btn-primary mt-6 inline-flex">
             Back to Meetings
           </Link>

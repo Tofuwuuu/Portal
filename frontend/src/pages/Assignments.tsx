@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { assignmentsApi } from '../api/client'
 import AssignmentCard from '../components/AssignmentCard'
 import AssignmentDetailModal from '../components/AssignmentDetailModal'
@@ -12,12 +12,27 @@ import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
 import SubmissionsPanel from '../components/SubmissionsPanel'
 import { useAuth } from '../context/AuthContext'
 import type { Assignment, Submission } from '../types'
+import {
+  countByStatus,
+  getAssignmentStatus,
+  getTurnInLabel,
+  matchesStatusFilter,
+  type AssignmentSubmissionStatus,
+} from '../utils/assignmentStatus'
+
+const STATUS_FILTERS: { id: AssignmentSubmissionStatus | 'all'; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'not_submitted', label: 'Not submitted' },
+  { id: 'submitted', label: 'Submitted' },
+  { id: 'graded', label: 'Graded' },
+]
 
 export default function Assignments() {
   const { user } = useAuth()
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [loading, setLoading] = useState(true)
   const [showArchived, setShowArchived] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<AssignmentSubmissionStatus | 'all'>('all')
   const [editing, setEditing] = useState<Assignment | null>(null)
   const [selected, setSelected] = useState<Assignment | null>(null)
   const [submitting, setSubmitting] = useState<Assignment | null>(null)
@@ -34,6 +49,16 @@ export default function Assignments() {
   useEffect(() => {
     loadAssignments()
   }, [loadAssignments])
+
+  const publishedAssignments = useMemo(
+    () => assignments.filter((a) => a.is_published && !a.is_archived),
+    [assignments]
+  )
+
+  const filteredAssignments = useMemo(() => {
+    if (user?.role !== 'student') return assignments
+    return publishedAssignments.filter((a) => matchesStatusFilter(a, statusFilter))
+  }, [assignments, publishedAssignments, statusFilter, user?.role])
 
   const handleCreate = async (values: Record<string, string>) => {
     await assignmentsApi.create({
@@ -87,6 +112,13 @@ export default function Assignments() {
     await loadAssignments()
   }
 
+  const reloadSubmissions = async () => {
+    if (!viewingSubmissions) return
+    const { data } = await assignmentsApi.listSubmissions(viewingSubmissions.id)
+    setSubmissions(data)
+    await loadAssignments()
+  }
+
   const handleViewSubmissions = async (assignment: Assignment) => {
     setViewingSubmissions(assignment)
     setSubmissionsLoading(true)
@@ -96,6 +128,21 @@ export default function Assignments() {
     } finally {
       setSubmissionsLoading(false)
     }
+  }
+
+  const handleStudentAction = (assignment: Assignment) => {
+    const status = getAssignmentStatus(assignment)
+    if (status === 'graded') {
+      setSelected(assignment)
+      return
+    }
+    setSubmitting(assignment)
+  }
+
+  const filterLabel = (id: AssignmentSubmissionStatus | 'all', base: string) => {
+    if (id === 'all' || user?.role !== 'student') return base
+    const count = countByStatus(publishedAssignments, id)
+    return `${base} (${count})`
   }
 
   return (
@@ -114,6 +161,25 @@ export default function Assignments() {
           />
           Show archived
         </label>
+      )}
+
+      {user?.role === 'student' && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              onClick={() => setStatusFilter(filter.id)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                statusFilter === filter.id
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {filterLabel(filter.id, filter.label)}
+            </button>
+          ))}
+        </div>
       )}
 
       {user?.role === 'teacher' && (
@@ -137,19 +203,28 @@ export default function Assignments() {
             setViewingSubmissions(null)
             setSubmissions([])
           }}
+          onGraded={reloadSubmissions}
         />
       )}
 
       {loading ? (
         <LoadingSpinner />
-      ) : assignments.length === 0 ? (
+      ) : filteredAssignments.length === 0 ? (
         <EmptyState
-          title="No assignments posted yet"
-          description="When teachers add homework, it will appear here."
+          title={
+            user?.role === 'student' && statusFilter !== 'all'
+              ? 'No assignments in this category'
+              : 'No assignments posted yet'
+          }
+          description={
+            user?.role === 'student' && statusFilter !== 'all'
+              ? 'Try another filter or check back later.'
+              : 'When teachers add homework, it will appear here.'
+          }
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
-          {assignments.map((a) => (
+          {filteredAssignments.map((a) => (
             <AssignmentCard
               key={a.id}
               assignment={a}
@@ -177,8 +252,8 @@ export default function Assignments() {
                     </button>
                   </>
                 ) : user?.role === 'student' && a.is_published && !a.is_archived ? (
-                  <button className="btn-primary" onClick={() => setSubmitting(a)}>
-                    {a.my_submission ? 'Update submission' : 'Submit'}
+                  <button className="btn-primary" onClick={() => handleStudentAction(a)}>
+                    {getTurnInLabel(getAssignmentStatus(a))}
                   </button>
                 ) : undefined
               }
@@ -193,6 +268,7 @@ export default function Assignments() {
         canSubmit={user?.role === 'student'}
         onSubmitClick={() => {
           if (!selected) return
+          if (getAssignmentStatus(selected) === 'graded') return
           setSubmitting(selected)
           setSelected(null)
         }}

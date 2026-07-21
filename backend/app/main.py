@@ -8,7 +8,7 @@ from app.config import settings
 from app.database import SessionLocal, engine
 from app.routers import activities, assignments, auth, meetings
 
-from app.seed import seed_default_teacher
+from app.seed import seed_defaults
 
 app = FastAPI(title="School Portal API", version="1.0.0")
 
@@ -35,7 +35,7 @@ def wait_for_db():
                 conn.execute(text("SELECT 1"))
             db = SessionLocal()
             try:
-                seed_default_teacher(db)
+                seed_defaults(db)
             finally:
                 db.close()
             return

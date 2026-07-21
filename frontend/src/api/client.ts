@@ -64,6 +64,11 @@ export const assignmentsApi = {
     return api.post<Submission>(`/assignments/${id}/submit`, formData)
   },
   listSubmissions: (id: number) => api.get<Submission[]>(`/assignments/${id}/submissions`),
+  gradeSubmission: (
+    assignmentId: number,
+    submissionId: number,
+    data: { grade: number; feedback: string }
+  ) => api.patch<Submission>(`/assignments/${assignmentId}/submissions/${submissionId}/grade`, data),
   downloadFileUrl: (assignmentId: number, submissionId: number) => {
     const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
     return `${base}/assignments/${assignmentId}/submissions/${submissionId}/file`
@@ -73,10 +78,21 @@ export const assignmentsApi = {
 export const meetingsApi = {
   list: () => api.get<Meeting[]>('/meetings'),
   get: (id: number) => api.get<Meeting>(`/meetings/${id}`),
-  create: (data: { title: string; description: string; starts_at: string }) =>
-    api.post<Meeting>('/meetings', data),
-  update: (id: number, data: { title: string; description: string; starts_at: string }) =>
-    api.patch<Meeting>(`/meetings/${id}`, data),
+  create: (data: {
+    title: string
+    description: string
+    starts_at: string
+    duration_minutes?: number
+  }) => api.post<Meeting>('/meetings', data),
+  update: (
+    id: number,
+    data: {
+      title: string
+      description: string
+      starts_at: string
+      duration_minutes?: number
+    }
+  ) => api.patch<Meeting>(`/meetings/${id}`, data),
   end: (id: number) => api.post<Meeting>(`/meetings/${id}/end`),
   remove: (id: number) => api.delete(`/meetings/${id}`),
 }
