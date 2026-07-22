@@ -6,7 +6,6 @@ import CreateForm from '../components/CreateForm'
 import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
-import PageHeader from '../components/PageHeader'
 import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
 import type { Activity } from '../types'
@@ -73,10 +72,6 @@ export default function Activities() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Activities"
-        description="School events, fairs, and announcements."
-      />
       {user?.role === 'teacher' && (
         <label className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600">
           <input

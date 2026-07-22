@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { meetingsApi } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
-import Navbar from '../components/Navbar'
+import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
+import type { Meeting } from '../types'
 import { canJoinMeeting } from '../utils/meetingTime'
 
 export default function JoinMeeting() {
@@ -36,50 +37,44 @@ export default function JoinMeeting() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <div className="p-8">
-          <LoadingSpinner />
-        </div>
-      </div>
+      <PageLayout title="Meetings" subtitle="Preparing your live classroom.">
+        <LoadingSpinner />
+      </PageLayout>
     )
   }
 
   if (error || !meeting) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <PageLayout title="Unable to join" subtitle="The meeting could not be opened.">
+        <div className="mx-auto max-w-lg py-16 text-center">
           <h1 className="text-xl font-semibold text-slate-900">Unable to join</h1>
           <p className="mt-2 text-sm text-slate-500">{error || 'Meeting unavailable.'}</p>
           <Link to="/meetings" className="btn-primary mt-6 inline-flex">
             Back to Meetings
           </Link>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   if (!meeting.is_active && user?.role !== 'teacher') {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <PageLayout title="Meeting ended" subtitle="This meeting is no longer available.">
+        <div className="mx-auto max-w-lg py-16 text-center">
           <h1 className="text-xl font-semibold text-slate-900">Meeting ended</h1>
           <p className="mt-2 text-sm text-slate-500">This meeting is no longer available.</p>
           <Link to="/meetings" className="btn-primary mt-6 inline-flex">
             Back to Meetings
           </Link>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 
   if (user?.role !== 'teacher' && !canJoinMeeting(meeting)) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navbar />
-        <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <PageLayout title="Not live yet" subtitle="Check the meeting schedule for the start time.">
+        <div className="mx-auto max-w-lg py-16 text-center">
           <h1 className="text-xl font-semibold text-slate-900">Not live yet</h1>
           <p className="mt-2 text-sm text-slate-500">
             This meeting has not started or has already ended. Check the Meetings page for the
@@ -89,7 +84,7 @@ export default function JoinMeeting() {
             Back to Meetings
           </Link>
         </div>
-      </div>
+      </PageLayout>
     )
   }
 

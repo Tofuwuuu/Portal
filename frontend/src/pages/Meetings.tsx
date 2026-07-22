@@ -5,7 +5,6 @@ import CreateForm from '../components/CreateForm'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
 import MeetingCard from '../components/MeetingCard'
-import PageHeader from '../components/PageHeader'
 import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
 import type { Meeting } from '../types'
@@ -55,8 +54,6 @@ export default function Meetings() {
 
   return (
     <PageLayout>
-      <PageHeader title="Meetings" description="Online class meetings with video." />
-
       {user?.role === 'teacher' && (
         <CreateForm
           fields={[

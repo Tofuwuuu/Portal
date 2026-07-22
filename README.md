@@ -70,13 +70,13 @@ uvicorn app.main:app --reload
 
 ### Frontend
 
+Rebuild the Docker frontend after UI changes:
+
 ```bash
-cd frontend
-npm install
-npm run dev
+docker compose up --build -d frontend
 ```
 
-The Vite dev server proxies `/api` requests to `http://localhost:8000`.
+Open **http://localhost** — no port number needed.
 
 ## Vercel (frontend)
 

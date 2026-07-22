@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
-    cors_origins: str = "http://localhost,http://localhost:80,http://localhost:5173,https://frontend-blue-beta-n3fz9uwjje.vercel.app"
+    cors_origins: str = "http://localhost,https://frontend-blue-beta-n3fz9uwjje.vercel.app"
 
     @property
     def sqlalchemy_database_url(self) -> str:

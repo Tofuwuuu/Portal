@@ -6,7 +6,6 @@ import CreateForm from '../components/CreateForm'
 import EditItemModal from '../components/EditItemModal'
 import EmptyState from '../components/EmptyState'
 import LoadingSpinner from '../components/LoadingSpinner'
-import PageHeader from '../components/PageHeader'
 import PageLayout from '../components/PageLayout'
 import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
 import SubmissionsPanel from '../components/SubmissionsPanel'
@@ -147,10 +146,6 @@ export default function Assignments() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Assignments"
-        description="Homework, projects, and due dates."
-      />
       {user?.role === 'teacher' && (
         <label className="mb-4 inline-flex items-center gap-2 text-sm text-slate-600">
           <input

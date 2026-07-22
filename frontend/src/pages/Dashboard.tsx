@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { activitiesApi, assignmentsApi, meetingsApi } from '../api/client'
-import ActivityCard from '../components/ActivityCard'
 import ActivityDetailModal from '../components/ActivityDetailModal'
-import AssignmentCard from '../components/AssignmentCard'
 import AssignmentDetailModal from '../components/AssignmentDetailModal'
-import EmptyState from '../components/EmptyState'
+import DashboardSection from '../components/DashboardSection'
+import {
+  CompactActivityRow,
+  CompactAssignmentRow,
+  CompactMeetingRow,
+} from '../components/DashboardRows'
+import DashboardStats from '../components/DashboardStats'
+import DateStrip from '../components/DateStrip'
 import LoadingSpinner from '../components/LoadingSpinner'
-import MeetingCard from '../components/MeetingCard'
 import PageLayout from '../components/PageLayout'
+import StatusBadge from '../components/StatusBadge'
 import SubmitAssignmentModal from '../components/SubmitAssignmentModal'
-import { CalendarIcon, ClipboardIcon, VideoIcon } from '../components/icons'
+import { CalendarIcon, ClipboardIcon, ClockIcon } from '../components/icons'
 import { useAuth } from '../context/AuthContext'
 import type { Activity, Assignment, Meeting } from '../types'
-import { canJoinMeeting } from '../utils/meetingTime'
+import { getAssignmentStatus } from '../utils/assignmentStatus'
 
 function startOfToday() {
   const d = new Date()
@@ -31,10 +35,37 @@ function parseDueDate(value: string) {
   return new Date(value + 'T00:00:00')
 }
 
+function dateKeyFromDate(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateKeyFromIso(value: string) {
+  return dateKeyFromDate(new Date(value))
+}
+
+function sortByDueDate(a: Assignment, b: Assignment) {
+  return parseDueDate(a.due_date).getTime() - parseDueDate(b.due_date).getTime()
+}
+
+function sortByStart(a: Meeting, b: Meeting) {
+  return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+}
+
+function CompactEmpty({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center">
+      <p className="text-sm font-semibold text-slate-700">{title}</p>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const [activities, setActivities] = useState<Activity[]>([])
-  const [assignments, setAssignments] = useState<Assignment[]>([])
   const [allAssignments, setAllAssignments] = useState<Assignment[]>([])
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [totalActivities, setTotalActivities] = useState(0)
@@ -46,7 +77,6 @@ export default function Dashboard() {
 
   const reloadAssignments = async () => {
     const assignRes = await assignmentsApi.list()
-    setAssignments(assignRes.data.slice(0, 3))
     setAllAssignments(assignRes.data)
     setTotalAssignments(assignRes.data.length)
   }
@@ -54,223 +84,255 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([activitiesApi.list(), assignmentsApi.list(), meetingsApi.list()])
       .then(([actRes, assignRes, meetRes]) => {
-        setActivities(actRes.data.slice(0, 3))
-        setAssignments(assignRes.data.slice(0, 3))
+        setActivities(actRes.data)
         setAllAssignments(assignRes.data)
-        setMeetings(meetRes.data.filter((m) => m.is_active && m.time_status !== 'ended').slice(0, 3))
+        setMeetings(meetRes.data)
         setTotalActivities(actRes.data.length)
         setTotalAssignments(assignRes.data.length)
       })
       .finally(() => setLoading(false))
   }, [])
 
-  const greeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Good morning'
-    if (hour < 17) return 'Good afternoon'
-    return 'Good evening'
-  }
+  const activeAssignments = useMemo(
+    () => allAssignments.filter((a) => a.is_published && !a.is_archived),
+    [allAssignments]
+  )
 
   const { dueThisWeek, overdue } = useMemo(() => {
     const today = startOfToday()
     const weekEnd = endOfWeek()
-    const active = allAssignments.filter((a) => a.is_published && !a.is_archived)
 
     return {
-      overdue: active.filter((a) => parseDueDate(a.due_date) < today),
-      dueThisWeek: active.filter((a) => {
+      overdue: activeAssignments.filter((a) => parseDueDate(a.due_date) < today),
+      dueThisWeek: activeAssignments.filter((a) => {
         const due = parseDueDate(a.due_date)
         return due >= today && due <= weekEnd
       }),
     }
-  }, [allAssignments])
+  }, [activeAssignments])
+
+  const upcomingAssignments = useMemo(() => {
+    const today = startOfToday()
+    return activeAssignments
+      .filter((a) => parseDueDate(a.due_date) >= today)
+      .slice()
+      .sort(sortByDueDate)
+  }, [activeAssignments])
+
+  const upcomingMeetings = useMemo(
+    () =>
+      meetings
+        .filter((m) => m.is_active && m.time_status !== 'ended')
+        .slice()
+        .sort(sortByStart),
+    [meetings]
+  )
+
+  const scheduleCounts = useMemo(() => {
+    const counts: Record<string, { activities: number; assignments: number; meetings: number }> = {}
+    const ensure = (key: string) => {
+      counts[key] ||= { activities: 0, assignments: 0, meetings: 0 }
+      return counts[key]
+    }
+
+    activities
+      .filter((activity) => !activity.is_archived)
+      .forEach((activity) => {
+        ensure(activity.date).activities += 1
+      })
+
+    activeAssignments.forEach((assignment) => {
+      ensure(assignment.due_date).assignments += 1
+    })
+
+    upcomingMeetings.forEach((meeting) => {
+      ensure(dateKeyFromIso(meeting.starts_at)).meetings += 1
+    })
+
+    return counts
+  }, [activities, activeAssignments, upcomingMeetings])
+
+  const completedAssignments = activeAssignments.filter(
+    (assignment) => getAssignmentStatus(assignment) === 'graded'
+  )
 
   return (
     <PageLayout>
-      <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-primary-dark via-primary to-primary-light p-6 text-white shadow-lg sm:p-8">
-        <p className="text-sm font-medium text-blue-100">{greeting()}</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-          Welcome back, {user?.full_name}
-        </h1>
-        <p className="mt-2 max-w-xl text-blue-100">
-          Here&apos;s what&apos;s happening at school today.
-        </p>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
-              <CalendarIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalActivities}</p>
-              <p className="text-xs text-blue-100">Activities</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
-              <ClipboardIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalAssignments}</p>
-              <p className="text-xs text-blue-100">Assignments</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
-            <div>
-              <p className="text-2xl font-bold">{dueThisWeek.length}</p>
-              <p className="text-xs text-blue-100">Due this week</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
-            <div>
-              <p className="text-2xl font-bold">{overdue.length}</p>
-              <p className="text-xs text-blue-100">Overdue</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {loading ? (
         <LoadingSpinner />
       ) : (
-        <div className="space-y-8">
-          {meetings.length > 0 && (
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <VideoIcon className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold text-slate-900">Upcoming Meetings</h2>
-                </div>
-                <Link to="/meetings" className="section-link">
-                  View all →
-                </Link>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {meetings.map((meeting) => (
-                  <MeetingCard
-                    key={meeting.id}
-                    meeting={meeting}
-                    actions={
-                      canJoinMeeting(meeting) ? (
-                        <Link to={`/meetings/${meeting.id}/join`} className="btn-primary text-sm">
-                          Join
-                        </Link>
-                      ) : undefined
-                    }
+        <div className="space-y-5">
+          <DashboardStats
+            stats={[
+              {
+                label: 'Activities',
+                value: totalActivities,
+                icon: <CalendarIcon className="h-5 w-5" />,
+                tone: 'blue',
+              },
+              {
+                label: 'Assignments',
+                value: totalAssignments,
+                icon: <ClipboardIcon className="h-5 w-5" />,
+                tone: 'green',
+              },
+              {
+                label: 'Due this week',
+                value: dueThisWeek.length,
+                icon: <ClockIcon className="h-5 w-5" />,
+                tone: 'orange',
+              },
+              {
+                label: 'Overdue',
+                value: overdue.length,
+                icon: <ClipboardIcon className="h-5 w-5" />,
+                tone: 'red',
+              },
+            ]}
+          />
+
+          <DateStrip counts={scheduleCounts} />
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="space-y-5">
+              <DashboardSection title="Upcoming Meetings" to="/meetings">
+                {upcomingMeetings.length === 0 ? (
+                  <CompactEmpty
+                    title="No upcoming meetings"
+                    description="Live and upcoming meetings will appear here."
                   />
-                ))}
-              </div>
-            </section>
-          )}
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingMeetings.slice(0, 4).map((meeting) => (
+                      <CompactMeetingRow key={meeting.id} meeting={meeting} />
+                    ))}
+                  </div>
+                )}
+              </DashboardSection>
 
-          <div className="grid gap-8 lg:grid-cols-2">
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-red-600">Overdue</h2>
-                <Link to="/assignments" className="section-link">
-                  View all →
-                </Link>
-              </div>
-              {overdue.length === 0 ? (
-                <EmptyState
-                  title="Nothing overdue"
-                  description="You're all caught up on past due dates."
-                />
-              ) : (
-                <div className="space-y-4">
-                  {overdue.slice(0, 3).map((a) => (
-                    <AssignmentCard
-                      key={a.id}
-                      assignment={a}
-                      onClick={() => setSelectedAssignment(a)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
+              <DashboardSection title="Due This Week" to="/assignments">
+                {dueThisWeek.length === 0 ? (
+                  <CompactEmpty
+                    title="No due dates this week"
+                    description="Assignments due in the next 7 days will show here."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {dueThisWeek
+                      .slice()
+                      .sort(sortByDueDate)
+                      .slice(0, 4)
+                      .map((assignment) => (
+                        <CompactAssignmentRow
+                          key={assignment.id}
+                          assignment={assignment}
+                          onClick={() => setSelectedAssignment(assignment)}
+                        />
+                      ))}
+                  </div>
+                )}
+              </DashboardSection>
 
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-primary">Due this week</h2>
-                <Link to="/assignments" className="section-link">
-                  View all →
-                </Link>
-              </div>
-              {dueThisWeek.length === 0 ? (
-                <EmptyState
-                  title="No due dates this week"
-                  description="Assignments due in the next 7 days will show here."
-                />
-              ) : (
-                <div className="space-y-4">
-                  {dueThisWeek.slice(0, 3).map((a) => (
-                    <AssignmentCard
-                      key={a.id}
-                      assignment={a}
-                      onClick={() => setSelectedAssignment(a)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
+              <DashboardSection title="Recent Activities" to="/activities">
+                {activities.length === 0 ? (
+                  <CompactEmpty
+                    title="No activities yet"
+                    description="School events will appear here when posted."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {activities.slice(0, 4).map((activity) => (
+                      <CompactActivityRow
+                        key={activity.id}
+                        activity={activity}
+                        onClick={() => setSelectedActivity(activity)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </DashboardSection>
+            </div>
 
-          <div className="grid gap-8 lg:grid-cols-2">
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold text-slate-900">Recent Activities</h2>
-                </div>
-                <Link to="/activities" className="section-link">
-                  View all →
-                </Link>
-              </div>
-              {activities.length === 0 ? (
-                <EmptyState
-                  title="No activities yet"
-                  description="School events will appear here when posted."
-                />
-              ) : (
-                <div className="space-y-4">
-                  {activities.map((a) => (
-                    <ActivityCard
-                      key={a.id}
-                      activity={a}
-                      onClick={() => setSelectedActivity(a)}
+            <aside className="space-y-5">
+              <DashboardSection title="Upcoming" to="/assignments">
+                <div className="space-y-3">
+                  {upcomingMeetings[0] ? (
+                    <div>
+                      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Next meeting
+                        </p>
+                        <StatusBadge tone="blue">{upcomingMeetings[0].time_status}</StatusBadge>
+                      </div>
+                      <CompactMeetingRow meeting={upcomingMeetings[0]} />
+                    </div>
+                  ) : (
+                    <CompactEmpty
+                      title="No next meeting"
+                      description="Scheduled meetings will show here."
                     />
-                  ))}
-                </div>
-              )}
-            </section>
+                  )}
 
-            <section>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ClipboardIcon className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold text-slate-900">Upcoming Assignments</h2>
+                  {upcomingAssignments[0] && (
+                    <div>
+                      <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Next assignment
+                      </p>
+                      <CompactAssignmentRow
+                        assignment={upcomingAssignments[0]}
+                        onClick={() => setSelectedAssignment(upcomingAssignments[0])}
+                      />
+                    </div>
+                  )}
                 </div>
-                <Link to="/assignments" className="section-link">
-                  View all →
-                </Link>
-              </div>
-              {assignments.length === 0 ? (
-                <EmptyState
-                  title="No assignments yet"
-                  description="Homework and tasks will show up here."
-                />
-              ) : (
-                <div className="space-y-4">
-                  {assignments.map((a) => (
-                    <AssignmentCard
-                      key={a.id}
-                      assignment={a}
-                      onClick={() => setSelectedAssignment(a)}
-                    />
-                  ))}
+              </DashboardSection>
+
+              <DashboardSection title="Assignment Overview" to="/assignments">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xl font-bold text-slate-950">{activeAssignments.length}</p>
+                    <p className="text-xs font-medium text-slate-500">Active</p>
+                  </div>
+                  <div className="rounded-xl bg-orange-50 p-3">
+                    <p className="text-xl font-bold text-orange-700">{dueThisWeek.length}</p>
+                    <p className="text-xs font-medium text-orange-700">Due this week</p>
+                  </div>
+                  <div className="rounded-xl bg-red-50 p-3">
+                    <p className="text-xl font-bold text-red-700">{overdue.length}</p>
+                    <p className="text-xs font-medium text-red-700">Overdue</p>
+                  </div>
+                  <div className="rounded-xl bg-emerald-50 p-3">
+                    <p className="text-xl font-bold text-emerald-700">
+                      {completedAssignments.length}
+                    </p>
+                    <p className="text-xs font-medium text-emerald-700">Completed</p>
+                  </div>
                 </div>
-              )}
-            </section>
+              </DashboardSection>
+
+              <DashboardSection title="Needs Attention" to="/assignments">
+                {overdue.length === 0 ? (
+                  <CompactEmpty
+                    title="Nothing overdue"
+                    description="You're all caught up on past due dates."
+                  />
+                ) : (
+                  <div className="space-y-3">
+                    {overdue
+                      .slice()
+                      .sort(sortByDueDate)
+                      .slice(0, 3)
+                      .map((assignment) => (
+                        <CompactAssignmentRow
+                          key={assignment.id}
+                          assignment={assignment}
+                          onClick={() => setSelectedAssignment(assignment)}
+                        />
+                      ))}
+                  </div>
+                )}
+              </DashboardSection>
+            </aside>
           </div>
         </div>
       )}

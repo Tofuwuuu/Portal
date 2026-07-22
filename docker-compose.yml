@@ -23,7 +23,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@db:5432/${POSTGRES_DB:-portal}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
-      CORS_ORIGINS: http://localhost,http://localhost:80
+      CORS_ORIGINS: http://localhost
     ports:
       - "8000:8000"
     volumes:
