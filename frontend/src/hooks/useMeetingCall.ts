@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   buildWsUrl,
-  getIceServers,
+  getLocalMediaStream,
+  getPeerConnectionConfig,
   parseSignalingMessage,
   sendSignaling,
   type CallStatus,
@@ -44,12 +45,14 @@ export function useMeetingCall({
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const remoteStreamRef = useRef<MediaStream | null>(null)
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null)
   const screenTrackRef = useRef<MediaStreamTrack | null>(null)
   const makingOfferRef = useRef(false)
   const ignoreOfferRef = useRef(false)
   const isPoliteRef = useRef(false)
   const leftRef = useRef(false)
+  const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([])
 
   const cleanup = useCallback(() => {
     leftRef.current = true
@@ -65,56 +68,120 @@ export function useMeetingCall({
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop())
     localStreamRef.current = null
+    remoteStreamRef.current = null
     cameraTrackRef.current = null
     screenTrackRef.current = null
+    iceCandidateQueueRef.current = []
 
     setLocalStream(null)
     setRemoteStream(null)
     setSharing(false)
   }, [])
 
-  const getPc = useCallback(() => {
-    if (pcRef.current) return pcRef.current
-
-    const pc = new RTCPeerConnection({ iceServers: getIceServers() })
-
-    pc.ontrack = (event) => {
-      const [stream] = event.streams
-      if (stream) {
-        setRemoteStream(stream)
-        setStatus('connected')
-      }
-    }
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
-        sendSignaling(wsRef.current, {
-          type: 'ice-candidate',
-          candidate: event.candidate.toJSON(),
-        })
-      }
-    }
-
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') {
-        setStatus('connected')
-      } else if (pc.connectionState === 'failed') {
-        setStatus('error')
-        setErrorMessage('Connection failed. Try leaving and rejoining.')
-      } else if (pc.connectionState === 'disconnected') {
-        setStatus('peer-left')
-      }
-    }
-
-    pcRef.current = pc
-    return pc
+  const setRemoteMedia = useCallback((stream: MediaStream) => {
+    remoteStreamRef.current = stream
+    setRemoteStream(stream)
+    setStatus('connected')
   }, [])
 
-  const addLocalTracks = useCallback((pc: RTCPeerConnection, stream: MediaStream) => {
-    stream.getTracks().forEach((track) => {
-      pc.addTrack(track, stream)
-    })
+  const flushIceCandidateQueue = useCallback(async () => {
+    const pc = pcRef.current
+    if (!pc?.remoteDescription) return
+
+    const queued = iceCandidateQueueRef.current
+    iceCandidateQueueRef.current = []
+
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate)
+      } catch {
+        // Candidate may have expired; continue with the rest
+      }
+    }
   }, [])
+
+  const handleIceCandidate = useCallback(
+    async (candidate: RTCIceCandidateInit) => {
+      const pc = pcRef.current
+      if (!pc || !candidate?.candidate) return
+
+      if (!pc.remoteDescription) {
+        iceCandidateQueueRef.current.push(candidate)
+        return
+      }
+
+      try {
+        await pc.addIceCandidate(candidate)
+      } catch {
+        // Ignore candidates that arrive after negotiation ends
+      }
+    },
+    []
+  )
+
+  const createPeerConnection = useCallback(
+    (stream: MediaStream) => {
+      const pc = new RTCPeerConnection(getPeerConnectionConfig())
+
+      stream.getTracks().forEach((track) => {
+        pc.addTrack(track, stream)
+      })
+
+      pc.ontrack = (event) => {
+        const [incoming] = event.streams
+        if (incoming) {
+          setRemoteMedia(incoming)
+          return
+        }
+        // iOS Safari may not populate event.streams — build one from the track
+        if (event.track) {
+          let remote = remoteStreamRef.current
+          if (!remote) {
+            remote = new MediaStream()
+            setRemoteMedia(remote)
+          }
+          if (!remote.getTracks().some((t) => t.id === event.track.id)) {
+            remote.addTrack(event.track)
+          }
+        }
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+          sendSignaling(wsRef.current, {
+            type: 'ice-candidate',
+            candidate: event.candidate.toJSON(),
+          })
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') {
+          setStatus('connected')
+        } else if (pc.connectionState === 'failed') {
+          setStatus('error')
+          setErrorMessage(
+            'Connection failed. Mobile networks often need a moment — try leaving and rejoining, or switch to Wi‑Fi.'
+          )
+        } else if (pc.connectionState === 'disconnected') {
+          setStatus('peer-left')
+        }
+      }
+
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') {
+          setStatus('error')
+          setErrorMessage(
+            'Could not establish a direct connection. Try Wi‑Fi instead of mobile data, or rejoin the meeting.'
+          )
+        }
+      }
+
+      pcRef.current = pc
+      return pc
+    },
+    [setRemoteMedia]
+  )
 
   const sendOffer = useCallback(async () => {
     const pc = pcRef.current
@@ -137,9 +204,9 @@ export function useMeetingCall({
 
   const handleOffer = useCallback(
     async (sdp: RTCSessionDescriptionInit) => {
-      const pc = getPc()
+      const pc = pcRef.current
       const ws = wsRef.current
-      if (!ws) return
+      if (!pc || !ws) return
 
       const offerCollision = makingOfferRef.current || pc.signalingState !== 'stable'
       ignoreOfferRef.current = !isPoliteRef.current && offerCollision
@@ -147,29 +214,24 @@ export function useMeetingCall({
       if (ignoreOfferRef.current) return
 
       await pc.setRemoteDescription(sdp)
+      await flushIceCandidateQueue()
       await pc.setLocalDescription(await pc.createAnswer())
       if (pc.localDescription) {
         sendSignaling(ws, { type: 'answer', sdp: pc.localDescription })
       }
     },
-    [getPc]
+    [flushIceCandidateQueue]
   )
 
-  const handleAnswer = useCallback(async (sdp: RTCSessionDescriptionInit) => {
-    const pc = pcRef.current
-    if (!pc) return
-    await pc.setRemoteDescription(sdp)
-  }, [])
-
-  const handleIceCandidate = useCallback(async (candidate: RTCIceCandidateInit) => {
-    const pc = pcRef.current
-    if (!pc || !candidate) return
-    try {
-      await pc.addIceCandidate(candidate)
-    } catch {
-      // Ignore candidates that arrive after negotiation ends
-    }
-  }, [])
+  const handleAnswer = useCallback(
+    async (sdp: RTCSessionDescriptionInit) => {
+      const pc = pcRef.current
+      if (!pc) return
+      await pc.setRemoteDescription(sdp)
+      await flushIceCandidateQueue()
+    },
+    [flushIceCandidateQueue]
+  )
 
   const restoreCameraTrack = useCallback(async () => {
     const pc = pcRef.current
@@ -209,7 +271,7 @@ export function useMeetingCall({
 
       let stream: MediaStream
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        stream = await getLocalMediaStream()
       } catch {
         setStatus('error')
         setErrorMessage('Camera or microphone access denied.')
@@ -227,13 +289,10 @@ export function useMeetingCall({
       setMicOn(true)
       setCamOn(true)
 
+      createPeerConnection(stream)
+
       const ws = new WebSocket(buildWsUrl(meetingId, token))
       wsRef.current = ws
-
-      ws.onopen = () => {
-        const pc = getPc()
-        addLocalTracks(pc, stream)
-      }
 
       ws.onmessage = async (event) => {
         const message = parseSignalingMessage(event.data)
@@ -259,6 +318,7 @@ export function useMeetingCall({
             break
           case 'peer-left':
             setRemoteStream(null)
+            remoteStreamRef.current = null
             setRemoteName(null)
             setStatus('peer-left')
             break
@@ -305,8 +365,7 @@ export function useMeetingCall({
     enabled,
     meetingId,
     cleanup,
-    getPc,
-    addLocalTracks,
+    createPeerConnection,
     sendOffer,
     handleOffer,
     handleAnswer,

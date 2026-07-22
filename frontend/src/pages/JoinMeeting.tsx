@@ -12,7 +12,7 @@ import type { CallStatus } from '../utils/webrtc'
 function statusLabel(status: CallStatus, remoteName: string | null): string {
   switch (status) {
     case 'connecting':
-      return 'Connecting...'
+      return 'Connecting… (may take longer on mobile data)'
     case 'waiting':
       return 'Waiting for the other person...'
     case 'connected':

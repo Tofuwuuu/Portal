@@ -24,9 +24,21 @@ export type CallStatus =
 const DEFAULT_STUN: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
 ]
 
-/** ICE servers: public STUN by default; optional TURN from Vite env for strict NATs. */
+/** Public TURN fallback for mobile/carrier NATs when no custom TURN is configured. */
+const FALLBACK_TURN: RTCIceServer = {
+  urls: [
+    'turn:openrelay.metered.ca:80',
+    'turn:openrelay.metered.ca:443',
+    'turn:openrelay.metered.ca:443?transport=tcp',
+  ],
+  username: 'openrelayproject',
+  credential: 'openrelayproject',
+}
+
+/** ICE servers: STUN + optional custom TURN, with a public TURN fallback for mobile networks. */
 export function getIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [...DEFAULT_STUN]
 
@@ -37,9 +49,39 @@ export function getIceServers(): RTCIceServer[] {
       username: (import.meta.env.VITE_TURN_USERNAME as string | undefined) || undefined,
       credential: (import.meta.env.VITE_TURN_CREDENTIAL as string | undefined) || undefined,
     })
+  } else {
+    servers.push(FALLBACK_TURN)
   }
 
   return servers
+}
+
+export function getPeerConnectionConfig(): RTCConfiguration {
+  return {
+    iceServers: getIceServers(),
+    iceCandidatePoolSize: 10,
+  }
+}
+
+export async function getLocalMediaStream(): Promise<MediaStream> {
+  const constraints: MediaStreamConstraints = {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+    video: {
+      facingMode: 'user',
+      width: { ideal: 1280, max: 1920 },
+      height: { ideal: 720, max: 1080 },
+    },
+  }
+
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints)
+  } catch {
+    // Fallback for browsers that reject ideal/max constraints (some mobile WebViews)
+    return navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+  }
 }
 
 function deriveWsBase(): string {

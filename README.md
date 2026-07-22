@@ -154,6 +154,7 @@ WebSocket signaling: `ws://localhost/api/ws/meetings/{id}?token=...` (proxied th
 - **2 participants max** — mesh P2P, no SFU.
 - **Single backend instance** — signaling rooms are in-memory; horizontal scaling would need shared state (e.g. Redis).
 - **Strict NATs** may require TURN; STUN-only can fail on some networks.
+- A public TURN fallback (`openrelay.metered.ca`) is included when `VITE_TURN_*` is not set — sufficient for testing and most mobile networks; use your own TURN for production scale.
 - TURN credentials in `VITE_TURN_*` are embedded in the frontend bundle; a backend-issued ICE config endpoint would be more secure in production.
 
 ### Test checklist
