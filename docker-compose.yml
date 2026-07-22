@@ -24,17 +24,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@db:5432/${POSTGRES_DB:-portal}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       CORS_ORIGINS: http://localhost
-      DAILY_API_KEY: ${DAILY_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
       - submission_uploads:/app/uploads
 
   frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_DAILY_DOMAIN: ${VITE_DAILY_DOMAIN:-}
+    build: ./frontend
     restart: unless-stopped
     depends_on:
       - backend

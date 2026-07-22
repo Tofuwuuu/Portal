@@ -9,7 +9,6 @@ from app.database import get_db
 from app.models.meeting import Meeting
 from app.models.user import User, UserRole
 from app.schemas.meeting import MeetingCreate, MeetingResponse, MeetingUpdate, TimeStatus
-from app.services.daily import ensure_daily_room
 
 router = APIRouter(prefix="/api/meetings", tags=["meetings"])
 
@@ -86,7 +85,6 @@ def get_meeting(
     meeting = _get_meeting_or_404(db, meeting_id)
     if current_user.role != UserRole.teacher and not meeting.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meeting not found")
-    ensure_daily_room(meeting.room_slug)
     return _to_response(meeting)
 
 
@@ -108,7 +106,6 @@ def create_meeting(
     db.add(meeting)
     db.commit()
     db.refresh(meeting)
-    ensure_daily_room(meeting.room_slug)
     return _to_response(meeting)
 
 

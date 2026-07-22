@@ -74,7 +74,7 @@ export default function Meetings() {
           title="No meetings yet"
           description={
             user?.role === 'teacher'
-              ? 'Schedule a meeting so students can join the video room.'
+              ? 'Schedule a meeting so students can join when it goes live.'
               : 'When a teacher schedules a class meeting, it will show up here.'
           }
         />

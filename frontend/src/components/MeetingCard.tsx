@@ -47,7 +47,7 @@ export default function MeetingCard({ meeting, actions }: MeetingCardProps) {
       }
       footer={meeting.creator_name ? <>Hosted by {meeting.creator_name}</> : undefined}
     >
-      <p>{meeting.description || 'Online class meeting via video.'}</p>
+      <p>{meeting.description || 'Online class meeting.'}</p>
       {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
     </Card>
   )

@@ -39,7 +39,7 @@ function routeMeta(pathname: string, userName?: string) {
   if (pathname.startsWith('/meetings')) {
     return {
       title: 'Meetings',
-      subtitle: 'Online class meetings with video.',
+      subtitle: 'Online class meetings and schedules.',
     }
   }
   return { title: 'School Portal', subtitle: 'Learning dashboard' }

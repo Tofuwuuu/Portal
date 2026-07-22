@@ -1,11 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { meetingsApi } from '../api/client'
 import LoadingSpinner from '../components/LoadingSpinner'
 import PageLayout from '../components/PageLayout'
 import { useAuth } from '../context/AuthContext'
 import type { Meeting } from '../types'
-import { canJoinMeeting } from '../utils/meetingTime'
+import { canJoinMeeting, formatMeetingTimeLabel, meetingTimeBadgeClass } from '../utils/meetingTime'
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
 
 export default function JoinMeeting() {
   const { id } = useParams()
@@ -29,17 +40,9 @@ export default function JoinMeeting() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const dailyDomain = import.meta.env.VITE_DAILY_DOMAIN as string | undefined
-
-  const dailySrc = useMemo(() => {
-    if (!meeting || !user || !dailyDomain) return ''
-    const displayName = encodeURIComponent(user.full_name)
-    return `https://${dailyDomain}.daily.co/${meeting.room_slug}?userName=${displayName}`
-  }, [meeting, user, dailyDomain])
-
   if (loading) {
     return (
-      <PageLayout title="Meetings" subtitle="Preparing your live classroom.">
+      <PageLayout title="Meetings" subtitle="Loading meeting details.">
         <LoadingSpinner />
       </PageLayout>
     )
@@ -90,44 +93,62 @@ export default function JoinMeeting() {
     )
   }
 
-  if (!dailyDomain) {
-    return (
-      <PageLayout title="Video not configured" subtitle="Daily.co is not set up for this app.">
-        <div className="mx-auto max-w-lg py-16 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">Video not configured</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Set <code className="text-xs">VITE_DAILY_DOMAIN</code> in the frontend environment.
-          </p>
-          <Link to="/meetings" className="btn-primary mt-6 inline-flex">
-            Back to Meetings
-          </Link>
-        </div>
-      </PageLayout>
-    )
-  }
+  const timeLabel = formatMeetingTimeLabel(meeting)
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-900">
-      <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-4 py-3 text-white">
-        <div>
-          <p className="text-sm text-slate-300">Live meeting</p>
-          <h1 className="font-semibold">{meeting.title}</h1>
-        </div>
-        <Link
-          to="/meetings"
-          className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/20"
-        >
-          Leave
-        </Link>
+    <PageLayout title={meeting.title} subtitle="Meeting room">
+      <div className="mx-auto max-w-2xl">
+        <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
+          <div className="border-b border-slate-100 bg-primary-50/50 px-6 py-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meetingTimeBadgeClass(meeting)}`}
+              >
+                {timeLabel}
+              </span>
+              {meeting.duration_minutes > 0 && (
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                  {meeting.duration_minutes} min
+                </span>
+              )}
+            </div>
+            <h1 className="mt-3 text-2xl font-bold text-slate-900">{meeting.title}</h1>
+            {meeting.creator_name && (
+              <p className="mt-1 text-sm text-slate-500">Hosted by {meeting.creator_name}</p>
+            )}
+          </div>
+
+          <div className="space-y-5 p-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Starts at
+              </p>
+              <p className="mt-1 text-sm font-medium text-slate-800">
+                {formatDateTime(meeting.starts_at)}
+              </p>
+            </div>
+
+            {meeting.description ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Description
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                  {meeting.description}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No additional details for this meeting.</p>
+            )}
+
+            <div className="flex justify-end border-t border-slate-100 pt-4">
+              <Link to="/meetings" className="btn-primary">
+                Back to Meetings
+              </Link>
+            </div>
+          </div>
+        </article>
       </div>
-      <iframe
-        title={`Meeting: ${meeting.title}`}
-        src={dailySrc}
-        allow="camera; microphone; fullscreen; display-capture; autoplay"
-        className="min-h-0 w-full flex-1 border-0"
-        style={{ height: 'calc(100vh - 57px)' }}
-        allowFullScreen
-      />
-    </div>
+    </PageLayout>
   )
 }
