@@ -6,6 +6,10 @@ COPY package.json ./
 RUN npm install
 
 COPY . .
+
+ARG VITE_DAILY_DOMAIN
+ENV VITE_DAILY_DOMAIN=$VITE_DAILY_DOMAIN
+
 RUN npm run build
 
 FROM nginx:alpine
