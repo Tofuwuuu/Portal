@@ -6,7 +6,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import SessionLocal, engine
-from app.routers import activities, assignments, auth, meetings
+from app.routers import activities, assignments, auth, meetings, ws_meetings
 
 from app.seed import seed_defaults
 
@@ -25,6 +25,7 @@ app.include_router(auth.router)
 app.include_router(activities.router)
 app.include_router(assignments.router)
 app.include_router(meetings.router)
+app.include_router(ws_meetings.router)
 
 
 @app.on_event("startup")

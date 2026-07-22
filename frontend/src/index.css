@@ -22,4 +22,8 @@
   .section-link {
     @apply inline-flex items-center gap-1 text-sm font-medium text-primary-light transition hover:text-primary hover:underline;
   }
+
+  .mirror {
+    transform: scaleX(-1);
+  }
 }

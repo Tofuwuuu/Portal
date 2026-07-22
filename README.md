@@ -115,3 +115,52 @@ railway up
 ```
 
 Then generate a public domain in Railway → Settings → Networking, and set `VITE_API_URL` on Vercel to `https://your-railway-url/api`.
+
+## 1-on-1 video (WebRTC)
+
+Live meetings use **self-hosted WebRTC**: the FastAPI backend relays signaling over WebSocket; audio and video flow peer-to-peer (STUN by default, optional TURN).
+
+### Local test
+
+1. Start the stack: `docker compose up --build`
+2. Log in as teacher (`admin@admin.com` / `admin`) and student (`student@school.com` / `student123`) in two browsers (or one normal + one incognito window).
+3. Create a meeting as teacher, wait until it is **Live**, then open the same join URL in both sessions.
+4. Allow camera/microphone when prompted. The first user sees “Waiting for the other person…” until the second joins.
+5. Test mute, camera toggle, screen share, leave/rejoin, and a third tab (should show “room full”).
+
+WebSocket signaling: `ws://localhost/api/ws/meetings/{id}?token=...` (proxied through nginx).
+
+### Environment variables
+
+**Railway (backend)** — none required. WebSockets run on the same `${PORT}` as the API. Optional for strict NATs:
+
+| Variable | Purpose |
+|----------|---------|
+| `TURN_URL` | TURN server URL |
+| `TURN_USERNAME` | TURN username |
+| `TURN_CREDENTIAL` | TURN credential |
+
+**Vercel (frontend)** — `VITE_API_URL` should point at the Railway API (e.g. `https://api-production-b4b1b.up.railway.app/api`). WebSocket URL is derived automatically as `wss://.../api/ws/...`.
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_WS_URL` | Override WebSocket base URL (rare) |
+| `VITE_TURN_URL` | TURN server for the browser |
+| `VITE_TURN_USERNAME` | TURN username |
+| `VITE_TURN_CREDENTIAL` | TURN credential |
+
+### Known limitations
+
+- **2 participants max** — mesh P2P, no SFU.
+- **Single backend instance** — signaling rooms are in-memory; horizontal scaling would need shared state (e.g. Redis).
+- **Strict NATs** may require TURN; STUN-only can fail on some networks.
+- TURN credentials in `VITE_TURN_*` are embedded in the frontend bundle; a backend-issued ICE config endpoint would be more secure in production.
+
+### Test checklist
+
+- [ ] Two-way audio and video between teacher and student
+- [ ] First joiner waits; second joiner connects
+- [ ] Mute / unmute and camera on / off visible to peer
+- [ ] Screen share replaces video; stop share restores camera
+- [ ] Leave shows “peer left” on the other side; rejoin works
+- [ ] Third participant rejected with “room full”

@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24
     cors_origins: str = "http://localhost,https://frontend-blue-beta-n3fz9uwjje.vercel.app"
+    turn_url: str = ""
+    turn_username: str = ""
+    turn_credential: str = ""
 
     @property
     def sqlalchemy_database_url(self) -> str:
