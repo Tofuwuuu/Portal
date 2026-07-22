@@ -29,11 +29,13 @@ export default function JoinMeeting() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const jitsiSrc = useMemo(() => {
-    if (!meeting || !user) return ''
+  const dailyDomain = import.meta.env.VITE_DAILY_DOMAIN as string | undefined
+
+  const dailySrc = useMemo(() => {
+    if (!meeting || !user || !dailyDomain) return ''
     const displayName = encodeURIComponent(user.full_name)
-    return `https://meet.jit.si/${meeting.room_slug}#userInfo.displayName="${displayName}"&config.prejoinConfig.enabled=true`
-  }, [meeting, user])
+    return `https://${dailyDomain}.daily.co/${meeting.room_slug}?userName=${displayName}`
+  }, [meeting, user, dailyDomain])
 
   if (loading) {
     return (
@@ -88,6 +90,22 @@ export default function JoinMeeting() {
     )
   }
 
+  if (!dailyDomain) {
+    return (
+      <PageLayout title="Video not configured" subtitle="Daily.co is not set up for this app.">
+        <div className="mx-auto max-w-lg py-16 text-center">
+          <h1 className="text-xl font-semibold text-slate-900">Video not configured</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Set <code className="text-xs">VITE_DAILY_DOMAIN</code> in the frontend environment.
+          </p>
+          <Link to="/meetings" className="btn-primary mt-6 inline-flex">
+            Back to Meetings
+          </Link>
+        </div>
+      </PageLayout>
+    )
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-900">
       <div className="flex items-center justify-between border-b border-slate-700 bg-slate-900 px-4 py-3 text-white">
@@ -104,7 +122,7 @@ export default function JoinMeeting() {
       </div>
       <iframe
         title={`Meeting: ${meeting.title}`}
-        src={jitsiSrc}
+        src={dailySrc}
         allow="camera; microphone; fullscreen; display-capture; autoplay"
         className="min-h-0 w-full flex-1 border-0"
         style={{ height: 'calc(100vh - 57px)' }}
