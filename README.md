@@ -70,13 +70,21 @@ uvicorn app.main:app --reload
 
 ### Frontend
 
-Rebuild the Docker frontend after UI changes:
+Use Docker (recommended — same as production nginx on port 80):
 
 ```bash
 docker compose up --build -d frontend
 ```
 
-Open **http://localhost** — no port number needed.
+Open **http://localhost** (no port number). Do not use Vite’s default `:5173`; local dev is configured for port **80** only when you run `npm run dev` with Docker stopped (may require admin on Windows).
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+For day-to-day work, prefer `docker compose up --build -d frontend` so the app matches **http://localhost**.
 
 ## Vercel (frontend)
 

@@ -44,9 +44,18 @@ function assignmentBadge(assignment: Assignment) {
 }
 
 function meetingBadge(meeting: Meeting) {
-  if (meeting.time_status === 'live') return { label: 'Active', tone: 'red' as const }
+  if (meeting.time_status === 'live') return { label: 'Live', tone: 'red' as const }
   if (meeting.time_status === 'ended') return { label: 'Completed', tone: 'slate' as const }
   return { label: 'Upcoming', tone: 'blue' as const }
+}
+
+const assignmentAccent: Record<ReturnType<typeof assignmentBadge>['tone'], string> = {
+  amber: 'border-l-amber-400 bg-amber-50/20',
+  blue: 'border-l-blue-400 bg-blue-50/20',
+  green: 'border-l-emerald-400 bg-emerald-50/20',
+  orange: 'border-l-orange-400 bg-orange-50/20',
+  red: 'border-l-red-400 bg-red-50/20',
+  slate: 'border-l-slate-300 bg-slate-50/40',
 }
 
 interface CompactMeetingRowProps {
@@ -55,11 +64,22 @@ interface CompactMeetingRowProps {
 
 export function CompactMeetingRow({ meeting }: CompactMeetingRowProps) {
   const status = meetingBadge(meeting)
+  const isLive = meeting.time_status === 'live'
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center">
+    <div
+      className={`group flex flex-col gap-3 rounded-lg border px-4 py-3 transition hover:-translate-y-0.5 sm:flex-row sm:items-center ${
+        isLive
+          ? 'border-red-200/80 bg-red-50/30 ring-1 ring-red-100/80'
+          : 'border-slate-100 bg-slate-50/50 hover:border-slate-200 hover:bg-white hover:shadow-sm'
+      }`}
+    >
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${
+            isLive ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'
+          }`}
+        >
           <VideoIcon className="h-5 w-5" />
         </div>
         <div className="min-w-0">
@@ -84,11 +104,14 @@ export function CompactMeetingRow({ meeting }: CompactMeetingRowProps) {
         </div>
       </div>
       {canJoinMeeting(meeting) ? (
-        <Link to={`/meetings/${meeting.id}/join`} className="btn-primary shrink-0 px-4 py-2 text-sm">
+        <Link
+          to={`/meetings/${meeting.id}/join`}
+          className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary-light/40"
+        >
           Join
         </Link>
       ) : (
-        <ChevronRightIcon className="hidden h-4 w-4 shrink-0 text-slate-300 sm:block" />
+        <ChevronRightIcon className="hidden h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-primary sm:block" />
       )}
     </div>
   )
@@ -118,7 +141,7 @@ export function CompactAssignmentRow({ assignment, onClick }: CompactAssignmentR
             }
           : undefined
       }
-      className={`rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-indigo-200 hover:shadow-card ${
+      className={`group rounded-lg border border-l-4 border-slate-100 bg-slate-50/50 px-4 py-3 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-sm ${assignmentAccent[status.tone]} ${
         onClick ? 'cursor-pointer' : ''
       }`}
     >
@@ -128,9 +151,12 @@ export function CompactAssignmentRow({ assignment, onClick }: CompactAssignmentR
             <h3 className="truncate text-sm font-bold text-slate-950">{assignment.title}</h3>
             <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           </div>
-          <p className="mt-1 line-clamp-1 text-xs text-slate-500">{assignment.description}</p>
+          <p className="mt-1 line-clamp-1 text-xs leading-5 text-slate-500">{assignment.description}</p>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium text-slate-500">
-            <span>Due {formatDate(assignment.due_date)}</span>
+            <span className="inline-flex items-center gap-1">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              Due {formatDate(assignment.due_date)}
+            </span>
             {assignment.creator_name && <span>Teacher: {assignment.creator_name}</span>}
             {typeof assignment.submission_count === 'number' && (
               <span>
@@ -141,7 +167,7 @@ export function CompactAssignmentRow({ assignment, onClick }: CompactAssignmentR
             {assignment.my_submission && <span>{getStatusLabel(submissionStatus)}</span>}
           </div>
         </div>
-        <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-primary" />
       </div>
     </article>
   )
@@ -168,24 +194,29 @@ export function CompactActivityRow({ activity, onClick }: CompactActivityRowProp
             }
           : undefined
       }
-      className={`rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-indigo-200 hover:shadow-card ${
+      className={`group rounded-lg border border-slate-100 bg-slate-50/50 px-4 py-3 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:shadow-sm ${
         onClick ? 'cursor-pointer' : ''
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-bold text-slate-950">{activity.title}</h3>
-            {!activity.is_published && <StatusBadge tone="amber">Unpublished</StatusBadge>}
-            {activity.is_archived && <StatusBadge tone="slate">Archived</StatusBadge>}
+        <div className="flex min-w-0 flex-1 gap-3">
+          <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+            <CalendarIcon className="h-4 w-4" />
           </div>
-          <p className="mt-1 line-clamp-1 text-xs text-slate-500">{activity.description}</p>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium text-slate-500">
-            <span>{formatDate(activity.date)}</span>
-            {activity.creator_name && <span>Posted by {activity.creator_name}</span>}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-sm font-bold text-slate-950">{activity.title}</h3>
+              {!activity.is_published && <StatusBadge tone="amber">Unpublished</StatusBadge>}
+              {activity.is_archived && <StatusBadge tone="slate">Archived</StatusBadge>}
+            </div>
+            <p className="mt-1 line-clamp-1 text-xs leading-5 text-slate-500">{activity.description}</p>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-medium text-slate-500">
+              <span>{formatDate(activity.date)}</span>
+              {activity.creator_name && <span>Posted by {activity.creator_name}</span>}
+            </div>
           </div>
         </div>
-        <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-slate-300" />
+        <ChevronRightIcon className="mt-1 h-4 w-4 shrink-0 text-slate-300 transition group-hover:text-primary" />
       </div>
     </article>
   )

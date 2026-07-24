@@ -30,11 +30,11 @@ export default function DateStrip({ counts }: DateStripProps) {
   const todayKey = dateKey(new Date())
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-card">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <section className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm sm:p-4">
+      <div className="mb-3 flex flex-col gap-0.5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">Schedule</h2>
-          <p className="text-sm text-slate-500">Nearby dates from your current portal data</p>
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-700">Schedule</h2>
+          <p className="hidden text-sm text-slate-500 sm:block">Dots show activities, assignments, and meetings</p>
         </div>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -47,9 +47,9 @@ export default function DateStrip({ counts }: DateStripProps) {
           return (
             <div
               key={key}
-              className={`flex min-h-24 w-20 shrink-0 flex-col items-center justify-between rounded-2xl border px-3 py-3 text-center transition ${
+              className={`flex min-h-[5.25rem] w-[4.5rem] shrink-0 flex-col items-center justify-between rounded-lg border px-2 py-2.5 text-center transition ${
                 selected
-                  ? 'border-indigo-500 bg-indigo-500 text-white shadow-sm shadow-indigo-500/25'
+                  ? 'border-primary bg-primary text-white shadow-sm shadow-blue-900/20'
                   : 'border-slate-200 bg-slate-50 text-slate-700'
               }`}
             >
