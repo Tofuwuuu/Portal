@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  emptyPresenterState,
+  type PresenterState,
+  type PresenterUpdateAction,
+} from '../utils/presenter'
+import {
   buildWsUrl,
   getLocalMediaStream,
   getPeerConnectionConfig,
@@ -21,11 +26,15 @@ interface UseMeetingCallResult {
   micOn: boolean
   camOn: boolean
   sharing: boolean
+  sharePreviewStream: MediaStream | null
   remoteName: string | null
+  presenterState: PresenterState
   toggleMic: () => void
   toggleCam: () => void
   startShare: () => Promise<void>
   stopShare: () => Promise<void>
+  sendPresenterUpdate: (action: PresenterUpdateAction) => void
+  requestPresenterSync: () => void
   leave: () => void
 }
 
@@ -40,7 +49,9 @@ export function useMeetingCall({
   const [micOn, setMicOn] = useState(true)
   const [camOn, setCamOn] = useState(true)
   const [sharing, setSharing] = useState(false)
+  const [sharePreviewStream, setSharePreviewStream] = useState<MediaStream | null>(null)
   const [remoteName, setRemoteName] = useState<string | null>(null)
+  const [presenterState, setPresenterState] = useState<PresenterState>(emptyPresenterState)
 
   const wsRef = useRef<WebSocket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
@@ -48,6 +59,7 @@ export function useMeetingCall({
   const remoteStreamRef = useRef<MediaStream | null>(null)
   const cameraTrackRef = useRef<MediaStreamTrack | null>(null)
   const screenTrackRef = useRef<MediaStreamTrack | null>(null)
+  const sharePreviewStreamRef = useRef<MediaStream | null>(null)
   const makingOfferRef = useRef(false)
   const ignoreOfferRef = useRef(false)
   const isPoliteRef = useRef(false)
@@ -71,11 +83,15 @@ export function useMeetingCall({
     remoteStreamRef.current = null
     cameraTrackRef.current = null
     screenTrackRef.current = null
+    sharePreviewStreamRef.current?.getTracks().forEach((t) => t.stop())
+    sharePreviewStreamRef.current = null
     iceCandidateQueueRef.current = []
 
     setLocalStream(null)
     setRemoteStream(null)
     setSharing(false)
+    setSharePreviewStream(null)
+    setPresenterState(emptyPresenterState)
   }, [])
 
   const setRemoteMedia = useCallback((stream: MediaStream) => {
@@ -244,6 +260,9 @@ export function useMeetingCall({
     }
     screenTrackRef.current?.stop()
     screenTrackRef.current = null
+    sharePreviewStreamRef.current?.getTracks().forEach((t) => t.stop())
+    sharePreviewStreamRef.current = null
+    setSharePreviewStream(null)
     setSharing(false)
     setCamOn(cameraTrack.enabled)
   }, [])
@@ -336,6 +355,9 @@ export function useMeetingCall({
           case 'ice-candidate':
             await handleIceCandidate(message.candidate)
             break
+          case 'presenter-state':
+            setPresenterState(message.state)
+            break
           default:
             break
         }
@@ -388,28 +410,38 @@ export function useMeetingCall({
   }, [sharing])
 
   const startShare = useCallback(async () => {
-    const pc = pcRef.current
-    if (!pc || sharing) return
+    if (sharing) return
 
     try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
       const screenTrack = screenStream.getVideoTracks()[0]
-      if (!screenTrack) return
+      if (!screenTrack) {
+        screenStream.getTracks().forEach((t) => t.stop())
+        return
+      }
 
       screenTrackRef.current = screenTrack
-      const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
-      if (sender) {
-        await sender.replaceTrack(screenTrack)
-      }
+      sharePreviewStreamRef.current = screenStream
+      setSharePreviewStream(screenStream)
       setSharing(true)
       setCamOn(true)
 
       screenTrack.onended = async () => {
         await restoreCameraTrack()
-        await renegotiateAfterTrackChange()
+        const pc = pcRef.current
+        if (pc) {
+          await renegotiateAfterTrackChange()
+        }
       }
 
-      await renegotiateAfterTrackChange()
+      const pc = pcRef.current
+      if (pc) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
+        if (sender) {
+          await sender.replaceTrack(screenTrack)
+        }
+        await renegotiateAfterTrackChange()
+      }
     } catch {
       setErrorMessage('Screen share cancelled or denied.')
     }
@@ -420,6 +452,18 @@ export function useMeetingCall({
     await restoreCameraTrack()
     await renegotiateAfterTrackChange()
   }, [sharing, restoreCameraTrack, renegotiateAfterTrackChange])
+
+  const sendPresenterUpdate = useCallback((action: PresenterUpdateAction) => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    sendSignaling(ws, { type: 'presenter-update', ...action })
+  }, [])
+
+  const requestPresenterSync = useCallback(() => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) return
+    sendSignaling(ws, { type: 'presenter-request' })
+  }, [])
 
   const leave = useCallback(() => {
     cleanup()
@@ -434,11 +478,15 @@ export function useMeetingCall({
     micOn,
     camOn,
     sharing,
+    sharePreviewStream,
     remoteName,
+    presenterState,
     toggleMic,
     toggleCam,
     startShare,
     stopShare,
+    sendPresenterUpdate,
+    requestPresenterSync,
     leave,
   }
 }

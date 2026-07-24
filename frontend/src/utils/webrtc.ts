@@ -1,3 +1,5 @@
+import type { PresenterMessage } from './presenter'
+
 export type SignalingMessage =
   | { type: 'ready'; initiator: boolean; self: PeerInfo; peer: PeerInfo | null }
   | { type: 'peer-joined'; peer: PeerInfo }
@@ -7,6 +9,7 @@ export type SignalingMessage =
   | { type: 'answer'; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; candidate: RTCIceCandidateInit }
   | { type: 'leave' }
+  | PresenterMessage
 
 export interface PeerInfo {
   id: number
