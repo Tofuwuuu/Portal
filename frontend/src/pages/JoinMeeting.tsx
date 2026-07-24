@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { useMeetingCall } from '../hooks/useMeetingCall'
 import type { Meeting } from '../types'
 import { canJoinMeeting } from '../utils/meetingTime'
+import { desktopShareUnavailableReason } from '../utils/screenShare'
 import type { CallStatus } from '../utils/webrtc'
 
 function statusLabel(status: CallStatus, remoteName: string | null): string {
@@ -53,6 +54,7 @@ function MeetingCallRoom({ meeting }: { meeting: Meeting }) {
     stopShare,
     sendPresenterUpdate,
     requestPresenterSync,
+    canShareDesktop,
     leave,
   } = useMeetingCall({ meetingId: meeting.id, enabled: true })
 
@@ -192,6 +194,11 @@ function MeetingCallRoom({ meeting }: { meeting: Meeting }) {
                   ? "Following teacher's presentation"
                   : statusLabel(status, remoteName))}
           </p>
+          {isTeacher && !canShareDesktop && !presenting && (
+            <p className="mb-3 px-2 text-center text-xs text-slate-400">
+              {desktopShareUnavailableReason()}
+            </p>
+          )}
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
@@ -231,6 +238,7 @@ function MeetingCallRoom({ meeting }: { meeting: Meeting }) {
             )}
 
             {!presenting &&
+              canShareDesktop &&
               (sharing ? (
                 <button
                   type="button"
@@ -249,7 +257,7 @@ function MeetingCallRoom({ meeting }: { meeting: Meeting }) {
                     void startShare()
                   }}
                   className="rounded-full bg-slate-700 px-4 py-2 text-sm font-medium text-white"
-                  title="Share a window, tab, or whole screen — it appears in the large area above"
+                  title="Share a window, tab, or whole screen — appears in the large area above"
                 >
                   Share desktop
                 </button>

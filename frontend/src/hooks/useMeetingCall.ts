@@ -5,6 +5,10 @@ import {
   type PresenterUpdateAction,
 } from '../utils/presenter'
 import {
+  canOfferDesktopShare,
+  describeDisplayMediaError,
+} from '../utils/screenShare'
+import {
   buildWsUrl,
   getLocalMediaStream,
   getPeerConnectionConfig,
@@ -35,6 +39,7 @@ interface UseMeetingCallResult {
   stopShare: () => Promise<void>
   sendPresenterUpdate: (action: PresenterUpdateAction) => void
   requestPresenterSync: () => void
+  canShareDesktop: boolean
   leave: () => void
 }
 
@@ -412,6 +417,11 @@ export function useMeetingCall({
   const startShare = useCallback(async () => {
     if (sharing) return
 
+    if (!canOfferDesktopShare()) {
+      setErrorMessage(describeDisplayMediaError(new DOMException('', 'NotSupportedError')))
+      return
+    }
+
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
       const screenTrack = screenStream.getVideoTracks()[0]
@@ -442,8 +452,8 @@ export function useMeetingCall({
         }
         await renegotiateAfterTrackChange()
       }
-    } catch {
-      setErrorMessage('Screen share cancelled or denied.')
+    } catch (err) {
+      setErrorMessage(describeDisplayMediaError(err))
     }
   }, [sharing, restoreCameraTrack, renegotiateAfterTrackChange])
 
@@ -487,6 +497,7 @@ export function useMeetingCall({
     stopShare,
     sendPresenterUpdate,
     requestPresenterSync,
+    canShareDesktop: canOfferDesktopShare(),
     leave,
   }
 }
